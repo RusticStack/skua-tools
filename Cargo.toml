@@ -1,0 +1,23 @@
+[package]
+name = "skua-tools"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "file, dos2unix and unix2dos for Skua Bash (Git Bash-compatible output)"
+repository = "https://github.com/RusticStack/skua-tools"
+publish = false
+
+[[bin]]
+name = "file"
+path = "src/bin/file.rs"
+
+[[bin]]
+name = "dos2unix"
+path = "src/bin/dos2unix.rs"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

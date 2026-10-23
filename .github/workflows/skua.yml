@@ -1,0 +1,45 @@
+name: Skua
+# Skua Bash's file, dos2unix and unix2dos (RusticStack/skua-tools): build what Skua ships and run the tests.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+jobs:
+  windows:
+    runs-on: blacksmith-4vcpu-windows-2025
+    steps:
+      # Byte-exact tests: keep LF on checkout.
+      - name: Set Git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # No rust-toolchain file in this repo: latest stable, as Skua Bash builds it.
+      - name: Set up rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc
+          rustup default stable
+          rustc --version
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build (as Skua Bash builds it)
+        run: cargo build --release --locked --target x86_64-pc-windows-msvc --bin file --bin dos2unix
+      - name: Test
+        run: cargo test --locked --no-fail-fast
+      - name: Format and lint
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
