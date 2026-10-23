@@ -23,16 +23,24 @@ struct Options {
     add_bom: bool,
 }
 
-fn program() -> (String, Direction) {
-    let arg0 = std::env::args().next().unwrap_or_default();
-    let name = Path::new(&arg0).file_stem().map_or_else(
-        || "dos2unix".to_owned(),
-        |s| s.to_string_lossy().to_lowercase(),
-    );
+/// The direction, from the name the program runs as, and how many leading arguments name it.
+/// Skua Bash's bundle runs `dos2unix.exe unix2dos ARGS` when it has no `bin\` hardlinks
+/// (multicall form, as `coreutils.exe ls`); with links, argv[0] is `unix2dos.exe`.
+fn program() -> (String, Direction, usize) {
+    let args: Vec<String> = std::env::args().take(2).collect();
+    let stem = |a: &str| {
+        Path::new(a)
+            .file_stem()
+            .map_or_else(String::new, |s| s.to_string_lossy().to_lowercase())
+    };
+    let (name, skip) = match args.get(1).map(String::as_str) {
+        Some(n @ ("dos2unix" | "unix2dos")) => (n.to_owned(), 2),
+        _ => (stem(args.first().map_or("", String::as_str)), 1),
+    };
     if name.contains("unix2dos") {
-        ("unix2dos".to_owned(), Direction::ToDos)
+        ("unix2dos".to_owned(), Direction::ToDos, skip)
     } else {
-        ("dos2unix".to_owned(), Direction::ToUnix)
+        ("dos2unix".to_owned(), Direction::ToUnix, skip)
     }
 }
 
@@ -147,7 +155,7 @@ fn convert_file(input: &str, output: &str, o: &Options, prog: &str) -> u8 {
 }
 
 fn main() -> ExitCode {
-    let (prog, dir) = program();
+    let (prog, dir, skip) = program();
     let mut o = Options {
         dir,
         quiet: false,
@@ -158,7 +166,7 @@ fn main() -> ExitCode {
     };
     let mut files: Vec<String> = Vec::new();
     let mut pairs: Vec<(String, String)> = Vec::new();
-    let mut args = std::env::args().skip(1).peekable();
+    let mut args = std::env::args().skip(skip).peekable();
     let mut new_file_mode = false;
     let mut only_files = false;
     while let Some(arg) = args.next() {
