@@ -237,6 +237,15 @@ fn main() -> ExitCode {
     ExitCode::from(status)
 }
 
+fn print_help(prog: &str) {
+    println!("Usage: {prog} [options] [file ...] [-n infile outfile ...]");
+    println!(" -f, --force      force conversion of binary files");
+    println!(" -k, --keepdate   keep output file date");
+    println!(" -n, --newfile    write to new file");
+    println!(" -o, --oldfile    write to old file (default)");
+    println!(" -q, --quiet      quiet mode, suppress all warnings");
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Direction, Options, convert};
@@ -275,13 +284,4 @@ mod tests {
         );
         assert!(convert(b"a\x00b", &u, "dos2unix", "x").is_none());
     }
-}
-
-fn print_help(prog: &str) {
-    println!("Usage: {prog} [options] [file ...] [-n infile outfile ...]");
-    println!(" -f, --force      force conversion of binary files");
-    println!(" -k, --keepdate   keep output file date");
-    println!(" -n, --newfile    write to new file");
-    println!(" -o, --oldfile    write to old file (default)");
-    println!(" -q, --quiet      quiet mode, suppress all warnings");
 }
