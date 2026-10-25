@@ -3,7 +3,7 @@ name = "skua-tools"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "file, dos2unix and unix2dos for Skua Bash (Git Bash-compatible output)"
+description = "file, dos2unix, unix2dos and clear for Skua Bash (Git Bash-compatible output)"
 repository = "https://github.com/RusticStack/skua-tools"
 publish = false
 
@@ -14,6 +14,10 @@ path = "src/bin/file.rs"
 [[bin]]
 name = "dos2unix"
 path = "src/bin/dos2unix.rs"
+
+[[bin]]
+name = "clear"
+path = "src/bin/clear.rs"
 
 [profile.release]
 opt-level = "s"

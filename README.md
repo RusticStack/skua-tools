@@ -1,6 +1,6 @@
 # skua-tools
 
-`file`, `dos2unix` and `unix2dos` for Skua Bash, the bash-compatible shell bundled with Skua on
+`file`, `dos2unix`, `unix2dos` and `clear` for Skua Bash, the bash-compatible shell bundled with Skua on
 Windows. Git Bash ships these (libmagic `file` 5.4x, dos2unix 7.x) and coding agents use them,
 for example `git ls-files | xargs file` to see line endings. No existing Rust implementation gave
 Git Bash's output, so these are small native programs written for that output.
@@ -13,5 +13,7 @@ Git Bash's output, so these are small native programs written for that output.
   gzip header details.
 - `dos2unix` / `unix2dos` (one program; the name picks the direction): in place, `-n IN OUT`,
   stdin to stdout, `-q -k -f -b -r -m`, binary files skipped, dos2unix 7.x messages.
+
+- `clear`: Git Bash's ncurses `clear` (`\e[H\e[2J\e[3J` for xterm-like terminals, `-x`, `-T`, `cygwin`/`screen`/`dumb`, the same errors); names Git Bash's terminfo lacks are cleared like xterm.
 
 Built by Skua Bash's `skua/build-uutils.ps1` (entry in `skua/uutils.toml`). MIT.
