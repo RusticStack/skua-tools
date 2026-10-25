@@ -188,16 +188,13 @@ fn main() -> ExitCode {
                     return ExitCode::SUCCESS;
                 }
                 "-h" | "--help" => {
-                    println!("Usage: {prog} [options] [file ...] [-n infile outfile ...]");
-                    println!(" -f, --force      force conversion of binary files");
-                    println!(" -k, --keepdate   keep output file date");
-                    println!(" -n, --newfile    write to new file");
-                    println!(" -o, --oldfile    write to old file (default)");
-                    println!(" -q, --quiet      quiet mode, suppress all warnings");
+                    print_help(&prog);
                     return ExitCode::SUCCESS;
                 }
-                other => {
-                    eprintln!("{prog}: option '{other}' unknown.");
+                _ => {
+                    // Git Bash's dos2unix prints its help on stdout for an unknown option and
+                    // exits 1, with no other message (M3-SH11).
+                    print_help(&prog);
                     return ExitCode::from(1);
                 }
             }
@@ -278,4 +275,13 @@ mod tests {
         );
         assert!(convert(b"a\x00b", &u, "dos2unix", "x").is_none());
     }
+}
+
+fn print_help(prog: &str) {
+    println!("Usage: {prog} [options] [file ...] [-n infile outfile ...]");
+    println!(" -f, --force      force conversion of binary files");
+    println!(" -k, --keepdate   keep output file date");
+    println!(" -n, --newfile    write to new file");
+    println!(" -o, --oldfile    write to old file (default)");
+    println!(" -q, --quiet      quiet mode, suppress all warnings");
 }

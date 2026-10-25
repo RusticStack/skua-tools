@@ -31,9 +31,14 @@ struct Options {
     names_file: Option<String>,
 }
 
+/// Usage errors as Git Bash's file prints them: the usage block on stderr, no `Try` line,
+/// exit 1 (M3-SH11). The block lists the options this `file` has.
 fn usage() -> ExitCode {
-    eprintln!("Usage: file [-bLhi] [--mime-type] [--mime-encoding] [-F sep] [-f namefile] file...");
-    eprintln!("Try `file --help' for more information.");
+    eprintln!(
+        "Usage: file [-bhiLN] [--mime-type] [--mime-encoding] [-F <separator>] [-f <namefile>]"
+    );
+    eprintln!("            <file> ...");
+    eprintln!("       file [--help]");
     ExitCode::from(1)
 }
 
@@ -84,7 +89,7 @@ fn parse_args() -> Result<Options, ExitCode> {
             "--separator" => o.separator = args.next().ok_or_else(usage)?,
             "--files-from" => o.names_file = Some(args.next().ok_or_else(usage)?),
             s if s.starts_with("--") => {
-                eprintln!("file: unrecognized option '{s}'");
+                eprintln!("file: unknown option -- {}", &s[2..]);
                 return Err(usage());
             }
             s => {
@@ -112,7 +117,7 @@ fn parse_args() -> Result<Options, ExitCode> {
                             break;
                         }
                         _ => {
-                            eprintln!("file: invalid option -- '{c}'");
+                            eprintln!("file: unknown option -- {c}");
                             return Err(usage());
                         }
                     }
