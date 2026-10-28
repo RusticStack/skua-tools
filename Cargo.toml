@@ -19,6 +19,22 @@ path = "src/bin/dos2unix.rs"
 name = "clear"
 path = "src/bin/clear.rs"
 
+[[bin]]
+name = "start"
+path = "src/bin/start.rs"
+
+[[bin]]
+name = "egrep"
+path = "src/bin/egrep.rs"
+
+[[bin]]
+name = "fgrep"
+path = "src/bin/fgrep.rs"
+
+[[bin]]
+name = "perl"
+path = "src/bin/perl.rs"
+
 [profile.release]
 opt-level = "s"
 lto = true
