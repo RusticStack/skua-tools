@@ -1,0 +1,203 @@
+Archive:  a.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+        0  2026-01-01 12:30   d/
+      240  2026-01-01 12:30   d/x.txt
+        0  2026-01-01 12:30   d/s/
+        3  2026-01-01 12:30   d/s/y.txt
+        4  2026-01-01 12:30   top.txt
+        0  2026-01-01 12:30   e.txt
+        4  2026-01-01 12:30   sp ace.txt
+      100  2026-01-01 12:30   a-name-longer-than-twenty-two-chars.txt
+---------                     -------
+      351                     8 files
+unzip -l rc=0
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+        0  2026-01-01 12:30   d/
+        0  2026-01-01 12:30   d/
+      240  2026-01-01 12:30   d/x.txt
+Archive:  a.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+        0  2026-01-01 12:30   d/
+      240  2026-01-01 12:30   d/x.txt
+---------                     -------
+      240                     2 files
+unzip -l pattern rc=0
+Archive:  a.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+---------                     -------
+        0                     0 files
+unzip -l nomatch rc=11
+d/
+d/x.txt
+d/s/
+d/s/y.txt
+top.txt
+e.txt
+sp ace.txt
+a-name-longer-than-twenty-two-chars.txt
+top.txt
+e.txt
+sp ace.txt
+a-name-longer-than-twenty-two-chars.txt
+Archive:  a.zip
+   creating: out/d/
+  inflating: out/d/x.txt             
+   creating: out/d/s/
+ extracting: out/d/s/y.txt           
+ extracting: out/top.txt             
+ extracting: out/e.txt               
+ extracting: out/sp ace.txt          
+  inflating: out/a-name-longer-than-twenty-two-chars.txt  
+unzip rc=0
+out
+out/a-name-longer-than-twenty-two-chars.txt
+out/d
+out/d/s
+out/d/s/y.txt
+out/d/x.txt
+out/e.txt
+out/sp ace.txt
+out/top.txt
+Archive:  a.zip
+replace out/d/x.txt? [y]es, [n]o, [A]ll, [N]one, [r]ename:  NULL
+(EOF or read error, treating as "[N]one" ...)
+unzip again rc=1
+Archive:  a.zip
+  inflating: out/d/x.txt             
+ extracting: out/d/s/y.txt           
+ extracting: out/top.txt             
+ extracting: out/e.txt               
+ extracting: out/sp ace.txt          
+  inflating: out/a-name-longer-than-twenty-two-chars.txt  
+unzip -o rc=0
+Archive:  a.zip
+unzip -n rc=0
+replace out/d/x.txt? [y]es, [n]o, [A]ll, [N]one, [r]ename:  NULL
+(EOF or read error, treating as "[N]one" ...)
+unzip -q again rc=1
+unzip -oq rc=0
+unzip -oqq rc=0
+Archive:  a.zip
+checkdir:  cannot create extraction directory: fresh1/sub
+           No such file or directory
+unzip -d missing parent rc=2
+Archive:  a.zip
+  inflating: flat/x.txt              
+ extracting: flat/y.txt              
+ extracting: flat/top.txt            
+ extracting: flat/e.txt              
+ extracting: flat/sp ace.txt         
+  inflating: flat/a-name-longer-than-twenty-two-chars.txt  
+unzip -j rc=0
+flat
+flat/a-name-longer-than-twenty-two-chars.txt
+flat/e.txt
+flat/sp ace.txt
+flat/top.txt
+flat/x.txt
+flat/y.txt
+Archive:  a.zip
+ extracting: some/top.txt            
+ extracting: some/e.txt              
+unzip members rc=0
+some
+some/e.txt
+some/top.txt
+Archive:  a.zip
+   creating: pat/d/
+  inflating: pat/d/x.txt             
+unzip d/* rc=0
+pat
+pat/d
+pat/d/x.txt
+  inflating: pat2/d/x.txt            
+   creating: pat2/d/s/
+ extracting: pat2/d/s/y.txt          
+pat2
+pat2/d
+pat2/d/s
+pat2/d/s/y.txt
+pat2/d/x.txt
+ extracting: excl/e.txt              
+ extracting: excl/sp ace.txt         
+  inflating: excl/a-name-longer-than-twenty-two-chars.txt  
+excl
+excl/a-name-longer-than-twenty-two-chars.txt
+excl/d
+excl/d/s
+excl/d/s/y.txt
+excl/e.txt
+excl/sp ace.txt
+excl/top.txt
+Archive:  a.zip
+caution: filename not matched:  nomatch
+unzip nomatch rc=11
+top
+abc
+unzip -p rc=0
+yy
+Archive:  a.zip
+    testing: d/                       OK
+    testing: d/x.txt                  OK
+    testing: d/s/                     OK
+    testing: d/s/y.txt                OK
+    testing: top.txt                  OK
+    testing: e.txt                    OK
+    testing: sp ace.txt               OK
+    testing: a-name-longer-than-twenty-two-chars.txt   OK
+No errors detected in compressed data of a.zip.
+unzip -t rc=0
+No errors detected in compressed data of a.zip.
+unzip -tq rc=0
+unzip -tqq rc=0
+Archive:  a.zip
+caution: filename not matched:  nomatch
+At least one error was detected in a.zip.
+unzip -t nomatch rc=11
+Archive:  slip.zip
+warning:  skipped "../" path component(s) in ../evil.txt
+ extracting: slip/evil.txt           
+warning:  stripped absolute path spec from /abs.txt
+ extracting: slip/abs.txt            
+ extracting: slip/ok.txt             
+warning:  skipped "../" path component(s) in a/../../x.txt
+ extracting: slip/a/x.txt            
+unzip slip rc=1
+slip
+slip/a
+slip/a/x.txt
+slip/abs.txt
+slip/evil.txt
+slip/ok.txt
+2
+unzip:  cannot find or open nonexistent, nonexistent.zip or nonexistent.ZIP.
+unzip nonexistent rc=9
+Archive:  notzip.zip
+  End-of-central-directory signature not found.  Either this file is not
+  a zipfile, or it constitutes one disk of a multi-part archive.  In the
+  latter case the central directory and zipfile comment will be found on
+  the last disk(s) of this archive.
+unzip:  cannot find zipfile directory in one of notzip.zip or
+        notzip.zip.zip, and cannot find notzip.zip.ZIP, period.
+unzip notzip rc=9
+Archive:  noext
+  Length      Date    Time    Name
+Archive:  a.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+---------                     -------
+        0                     0 files
+UnZip 6.00 of 20 April 2009, by Info-ZIP.  Maintained by C. Spieler.  Send
+bug reports using http://www.info-zip.org/zip-bug.html; see README for details.
+
+unzip -Q rc=10
+UnZip 6.00 of 20 April 2009, by Info-ZIP.  Maintained by C. Spieler.  Send
+bug reports using http://www.info-zip.org/zip-bug.html; see README for details.
+
+Usage: unzip [-Z] [-opts[modifiers]] file[.zip] [list] [-x xlist] [-d exdir]
+unzip no args rc=0
+[exit 0]

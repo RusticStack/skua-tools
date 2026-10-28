@@ -1,0 +1,51 @@
+zip -r rc=0
+zip -j rc=0
+Archive:  full.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+        0  2026-01-01 12:30   proj/
+      440  2026-01-01 12:30   proj/a.txt
+        6  2026-01-01 12:30   proj/b.txt
+        0  2026-01-01 12:30   proj/docs/
+        8  2026-01-01 12:30   proj/docs/README.md
+        0  2026-01-01 12:30   proj/empty
+        0  2026-01-01 12:30   proj/src/
+       13  2026-01-01 12:30   proj/src/main.rs
+---------                     -------
+      467                     8 files
+proj/
+proj/a.txt
+proj/b.txt
+proj/docs/
+proj/docs/README.md
+proj/empty
+proj/src/
+proj/src/main.rs
+Archive:  flat.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+      440  2026-01-01 12:30   a.txt
+       13  2026-01-01 12:30   main.rs
+---------                     -------
+      453                     2 files
+No errors detected in compressed data of full.zip.
+No errors detected in compressed data of flat.zip.
+unzip rc=0
+x
+x/proj
+x/proj/a.txt
+x/proj/b.txt
+x/proj/docs
+x/proj/docs/README.md
+x/proj/empty
+x/proj/src
+x/proj/src/main.rs
+same a.txt
+same b.txt
+same empty
+same docs/README.md
+same src/main.rs
+flat-same
+hello
+fn main() {}
+[exit 0]
