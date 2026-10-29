@@ -59,7 +59,9 @@ fn default_git_roots() -> Vec<PathBuf> {
     roots.extend(
         var("USERPROFILE").map(|p| p.join("scoop").join("apps").join("git").join("current")),
     );
-    roots.push(PathBuf::from(r"C:\Program Files\Git"));
+    if var("ProgramFiles").is_none() {
+        roots.push(PathBuf::from(r"C:\Program Files\Git"));
+    }
     roots
 }
 

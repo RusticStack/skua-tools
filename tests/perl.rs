@@ -72,3 +72,46 @@ fn a_signalled_perl_is_not_reported_as_success() {
     let out = perl(&["-e", "kill 9, $$"], b"");
     assert_eq!(out.status.code(), Some(137));
 }
+
+/// No Git for Windows anywhere: the message and status 127 (the search is pointed at an empty
+/// folder through the variables it reads; a bad `SKUA_PERL` only warns).
+#[test]
+fn without_git_perl_says_so_and_exits_127() {
+    let empty = std::env::temp_dir().join(format!("skua-tools-no-git-{}", std::process::id()));
+    std::fs::create_dir_all(&empty).expect("mkdir");
+    let out = Command::new(env!("CARGO_BIN_EXE_perl"))
+        .args(["-e", "1"])
+        .env("PATH", &empty)
+        .env("SKUA_PERL", empty.join("missing").join("perl.exe"))
+        .env("ProgramFiles", &empty)
+        .env("ProgramW6432", &empty)
+        .env("ProgramFiles(x86)", &empty)
+        .env("LOCALAPPDATA", &empty)
+        .env("USERPROFILE", &empty)
+        .env("SCOOP", &empty)
+        .output()
+        .expect("run");
+    let _ = std::fs::remove_dir_all(&empty);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(127), "{err}");
+    assert!(
+        err.contains("SKUA_PERL=") && err.contains("not a usable perl"),
+        "{err}"
+    );
+    assert!(err.contains("perl: not found"), "{err}");
+}
+
+/// `SKUA_PERL` naming the launcher itself must not recurse.
+#[test]
+fn skua_perl_naming_the_launcher_does_not_recurse() {
+    if !have_git_perl() {
+        return;
+    }
+    let out = Command::new(env!("CARGO_BIN_EXE_perl"))
+        .args(["-e", "print 42"])
+        .env("SKUA_PERL", env!("CARGO_BIN_EXE_perl"))
+        .output()
+        .expect("run");
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "42");
+    assert!(String::from_utf8_lossy(&out.stderr).contains("not a usable perl"));
+}
