@@ -19,6 +19,21 @@ path = "src/bin/dos2unix.rs"
 name = "clear"
 path = "src/bin/clear.rs"
 
+[[bin]]
+name = "xxd"
+path = "src/bin/xxd.rs"
+
+[[bin]]
+name = "column"
+path = "src/bin/column.rs"
+
+[[bin]]
+name = "iconv"
+path = "src/bin/iconv.rs"
+
+[dependencies]
+encoding_rs = "0.8.35"
+
 [profile.release]
 opt-level = "s"
 lto = true
