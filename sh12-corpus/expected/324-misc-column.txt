@@ -1,0 +1,138 @@
+name  age
+ann   31
+bob   27
+cid   45
+name | age
+ann  | 31
+bob  | 27
+cid  | 45
+NAME  AGE
+name  age
+ann    31
+bob    27
+cid    45
+NAME
+name
+ann
+bob
+cid
+AGE  NAME
+age  name
+31   ann
+27   bob
+45   cid
+name  age
+ann   31
+bob   27
+cid   45
+{
+   "table": [
+      {
+         "name": "name",
+         "age": "age"
+      },{
+         "name": "ann",
+         "age": "31"
+      },{
+         "name": "bob",
+         "age": "27"
+      },{
+         "name": "cid",
+         "age": "45"
+      }
+   ]
+}
+{
+   "people": [
+      {
+         "name": "name",
+         "age": "age"
+      },{
+         "name": "ann",
+         "age": "31"
+      },{
+         "name": "bob",
+         "age": "27"
+      },{
+         "name": "cid",
+         "age": "45"
+      }
+   ]
+}
+{
+   "table": [
+      {
+         "x": "a",
+         "z": "c"
+      },{
+         "x": "1",
+         "z": "3"
+      }
+   ]
+}
+a   b c  d
+aa  bbb  
+a     b  c
+lead  x  
+a  b
+   
+c  d
+a     b  
+         
+last     
+a  b  c d e
+x       é     y
+longer  日本  z
+1	4	7	10	13	16	19	22	25	28
+2	5	8	11	14	17	20	23	26	29
+3	6	9	12	15	18	21	24	27	30
+1	7	13	19	25
+2	8	14	20	26
+3	9	15	21	27
+4	10	16	22	28
+5	11	17	23	29
+6	12	18	24	30
+1	2	3	4	5
+6	7	8	9	10
+11	12	13	14	15
+16	17	18	19	20
+21	22	23	24	25
+26	27	28	29	30
+1	7
+2	8
+3	9
+4	10
+5	11
+6	12
+abcdefghij
+xy
+   o   n   e  \t   t   w   o  \n
+   o   n   e  \t  \t   t   w   o  \n
+a                    b                  
+rc=1
+name  age
+ann   31
+rc=0
+column: unknown option -- bogus
+Try 'column --help' for more information.
+rc=1
+column: option requires an argument -- c
+Try 'column --help' for more information.
+rc=1
+column: invalid columns argument: 'abc'
+rc=1
+column: undefined column name '9'
+rc=1
+column: option --table-columns or --table-column required for --json
+rc=1
+column: ambiguous option -- out
+column from util-linux 2.40.2
+
+Usage:
+ column [options] [<file>...]
+n   ||a
+name||age
+ann ||31
+bob ||27
+cid ||45
+[exit 0]
