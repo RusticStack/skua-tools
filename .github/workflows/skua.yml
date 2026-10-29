@@ -1,5 +1,5 @@
 name: Skua
-# Skua Bash's file, dos2unix and unix2dos (RusticStack/skua-tools): build what Skua ships and run the tests.
+# Skua Bash's tools (RusticStack/skua-tools): build what Skua ships and run the tests.
 on:
   push:
     branches: [ main ]
@@ -36,7 +36,7 @@ jobs:
           rustc --version
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Build (as Skua Bash builds it)
-        run: cargo build --release --locked --target x86_64-pc-windows-msvc --bin file --bin dos2unix --bin clear
+        run: cargo build --release --locked --target x86_64-pc-windows-msvc --bins
       - name: Test
         run: cargo test --locked --no-fail-fast
       - name: Format and lint
