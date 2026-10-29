@@ -3,10 +3,9 @@ name = "skua-tools"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "file, dos2unix, unix2dos and clear for Skua Bash (Git Bash-compatible output)"
+description = "Git Bash-compatible tools for Skua Bash: file, dos2unix, unix2dos, clear, ps, pgrep, pkill, gzip, gunzip, zcat, unzip, zip, xxd, column, iconv, start, egrep, fgrep, perl"
 repository = "https://github.com/RusticStack/skua-tools"
 publish = false
-
 [[bin]]
 name = "file"
 path = "src/bin/file.rs"
@@ -31,6 +30,52 @@ path = "src/bin/pgrep.rs"
 name = "pkill"
 path = "src/bin/pkill.rs"
 
+[[bin]]
+name = "gzip"
+path = "src/bin/gzip.rs"
+
+[[bin]]
+name = "unzip"
+path = "src/bin/unzip.rs"
+
+[[bin]]
+name = "zip"
+path = "src/bin/zip.rs"
+
+[[bin]]
+name = "xxd"
+path = "src/bin/xxd.rs"
+
+[[bin]]
+name = "column"
+path = "src/bin/column.rs"
+
+[[bin]]
+name = "iconv"
+path = "src/bin/iconv.rs"
+
+[[bin]]
+name = "start"
+path = "src/bin/start.rs"
+
+[[bin]]
+name = "egrep"
+path = "src/bin/egrep.rs"
+
+[[bin]]
+name = "fgrep"
+path = "src/bin/fgrep.rs"
+
+[[bin]]
+name = "perl"
+path = "src/bin/perl.rs"
+
+[dependencies]
+encoding_rs = "0.8.35"
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+regex-lite = "0.1.9"
+sysinfo = { version = "0.39.6", default-features = false, features = ["system", "user"] }
+
 [profile.release]
 opt-level = "s"
 lto = true
@@ -39,7 +84,3 @@ strip = true
 panic = "abort"
 
 [workspace]
-
-[dependencies]
-regex-lite = "0.1.9"
-sysinfo = { version = "0.39.6", default-features = false, features = ["system", "user"] }

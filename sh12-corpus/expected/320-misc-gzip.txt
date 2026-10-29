@@ -1,0 +1,93 @@
+gzip rc=0
+ls: cannot access 'g.txt': No such file or directory
+g.txt.gz
+gzip -d rc=0
+roundtrip-ok
+ls: cannot access 'g.txt.gz': No such file or directory
+gzip -k rc=0
+g.txt
+g.txt.gz
+gzip: g.txt.gz already exists;	not overwritten
+gzip again rc=2
+g.txt
+g.txt.gz
+gzip -f rc=0
+ls: cannot access 'g.txt': No such file or directory
+g.txt.gz
+gzip -dk rc=0
+gzip -dkf rc=0
+kept-ok
+dc-ok
+pipe-ok
+gunzip-ok
+alpha
+beta
+550
+550
+550
+hello
+0
+gzip -t rc=0
+
+gzip: bad.gz: not in gzip format
+gzip -t bad rc=1
+
+gzip: bad.gz: not in gzip format
+gzip -dc bad rc=1
+gzip: plain.txt: unknown suffix -- ignored
+gzip -d plain rc=2
+
+gzip: plain.txt: not in gzip format
+gzip -dc plain rc=1
+junk
+gzip -dcf plain rc=0
+gzip: nonexist.gz: No such file or directory
+gzip -dc nonexist rc=1
+gzip: nonexist: No such file or directory
+gzip nonexist rc=1
+gzip: nonexist: No such file or directory
+gzip -q nonexist rc=1
+gzip: g.txt.gz already has .gz suffix -- unchanged
+gzip x.gz rc=0
+gzip read-only rc=0
+ls: cannot access 'ro.txt': No such file or directory
+ro.txt.gz
+-r--r--r--
+gzip -d read-only rc=0
+ls: cannot access 'ro.txt.gz': No such file or directory
+ro.txt
+-r--r--r--
+gzip: dd is a directory -- ignored
+gzip dir rc=2
+gzip -r rc=0
+f.gz
+g.gz
+gzip -dr rc=0
+f
+g
+gzip -S rc=0
+s1.zz
+s2.zz
+gzip -d -S rc=0
+one
+two
+         compressed        uncompressed  ratio uncompressed_name
+                 37                 550  96.5% fixed
+                 37                 550  96.5% fixed
+fixed -t rc=0
+fixed-ok
+                 37                 550  96.5% fixed
+                 37                 550  96.5% fixed
+gzip: unknown option -- x
+Try `gzip --help' for more information.
+gzip -x rc=1
+gzip: unknown option -- bogus
+Try `gzip --help' for more information.
+gzip --bogus rc=1
+gzip: option requires an argument -- S
+Try `gzip --help' for more information.
+gzip -S rc=1
+Usage: gzip [OPTION]... [FILE]...
+Compress or uncompress FILEs (by default, compress FILES in-place).
+gzip 1.14
+[exit 0]
