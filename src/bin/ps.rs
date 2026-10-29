@@ -287,7 +287,7 @@ mod tests {
             Some(HEAD_SHORT.find("COMMAND").unwrap_or(0))
         );
         assert!(s.starts_with("  46123 ?        "), "{s:?}");
-        let f = row(&q, Format::Full, 5, 0);
+        let f = row(&q, Format::Full, 99, 0);
         assert_eq!(
             f.find("sleep 20"),
             Some(HEAD_FULL.find("COMMAND").unwrap_or(0))
