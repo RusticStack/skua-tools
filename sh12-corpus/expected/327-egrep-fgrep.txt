@@ -1,0 +1,42 @@
+alpha
+gamma
+alpha
+rc=0
+2
+rc=0
+1:alpha
+3:gamma
+4:alpha
+rc=0
+src/lib.rs:pub fn add(a: i32, b: i32) -> i32 {
+src/main.rs:fn main() {
+rc=0
+rc=1
+rc=1
+alpha
+alpha
+rc=0
+a.c
+rc=0
+a.c
+abc
+rc=0
+quiet no match rc=1
+no match rc=1
+grep: nosuchfile: No such file or directory
+missing rc=2
+Usage: grep [OPTION]... PATTERN [FILE]...
+Try 'grep --help' for more information.
+usage rc=2
+Usage: grep [OPTION]... PATTERN [FILE]...
+Try 'grep --help' for more information.
+usage rc=2
+grep (GNU grep) N
+alpha
+beta
+one
+two
+three
+alpha
+rc=1
+[exit 0]
