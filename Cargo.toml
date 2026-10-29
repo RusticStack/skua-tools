@@ -19,6 +19,18 @@ path = "src/bin/dos2unix.rs"
 name = "clear"
 path = "src/bin/clear.rs"
 
+[[bin]]
+name = "ps"
+path = "src/bin/ps.rs"
+
+[[bin]]
+name = "pgrep"
+path = "src/bin/pgrep.rs"
+
+[[bin]]
+name = "pkill"
+path = "src/bin/pkill.rs"
+
 [profile.release]
 opt-level = "s"
 lto = true
@@ -27,3 +39,7 @@ strip = true
 panic = "abort"
 
 [workspace]
+
+[dependencies]
+regex-lite = "0.1.9"
+sysinfo = { version = "0.39.6", default-features = false, features = ["system", "user"] }
