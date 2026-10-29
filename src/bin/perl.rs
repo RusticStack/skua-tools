@@ -2,12 +2,17 @@
 //! same arguments, stdio and exit status (owner decision: Skua Bash does not reimplement Perl).
 //!
 //! Search order: `SKUA_PERL`; `git.exe` on `PATH` (its Git root: `cmd\`, `bin\`, `mingw64\bin\`)
-//! then `usr\bin\perl.exe`; `C:\Program Files\Git\usr\bin\perl.exe`. Git's perl is an MSYS
-//! program: its `usr\bin` is put on `PATH` for the child so its DLLs and helpers resolve.
+//! then `usr\bin\perl.exe`; then the usual installs (Program Files, per-user, Scoop). Git's perl
+//! is an MSYS program: its `usr\bin` is put in front of `PATH` for the child so its DLLs and
+//! helpers resolve, which means a `system("ls")` inside a script runs Git's `ls`. Arguments are
+//! quoted for the Cygwin parser (`msys_args`).
 
 #[path = "../misc/launch.rs"]
 mod launch;
+#[path = "../misc/msys_args.rs"]
+mod msys_args;
 
+use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
@@ -17,6 +22,11 @@ const NOT_FOUND: &str = "perl: not found: Skua Bash runs Git for Windows' perl; 
 fn git_root(git_dir: &Path) -> Option<PathBuf> {
     let name = |p: &Path| p.file_name().map(|n| n.to_string_lossy().to_lowercase());
     let mut dir = git_dir.to_owned();
+    if name(&dir).as_deref() == Some("shims") {
+        // Scoop: `<scoop>\shims\git.exe`, the real Git is `<scoop>\apps\git\current`.
+        let current = dir.parent()?.join("apps").join("git").join("current");
+        return current.is_dir().then_some(current);
+    }
     if name(&dir).as_deref() == Some("bin") {
         let parent = dir.parent()?.to_owned();
         if matches!(
@@ -37,15 +47,38 @@ fn git_root(git_dir: &Path) -> Option<PathBuf> {
     None
 }
 
-fn find_perl() -> Option<PathBuf> {
-    if let Some(p) =
-        std::env::var_os("SKUA_PERL").filter(|p| !p.is_empty() && Path::new(p).is_file())
-    {
-        return Some(PathBuf::from(p));
+/// Where Git for Windows is usually installed (machine-wide, per user, Scoop), as roots.
+fn default_git_roots() -> Vec<PathBuf> {
+    let var = |k: &str| std::env::var_os(k).map(PathBuf::from);
+    let mut roots = Vec::new();
+    for k in ["ProgramFiles", "ProgramW6432", "ProgramFiles(x86)"] {
+        roots.extend(var(k).map(|p| p.join("Git")));
     }
+    roots.extend(var("LOCALAPPDATA").map(|p| p.join("Programs").join("Git")));
+    roots.extend(var("SCOOP").map(|p| p.join("apps").join("git").join("current")));
+    roots.extend(
+        var("USERPROFILE").map(|p| p.join("scoop").join("apps").join("git").join("current")),
+    );
+    roots.push(PathBuf::from(r"C:\Program Files\Git"));
+    roots
+}
+
+fn find_perl() -> Option<PathBuf> {
     let me = std::env::current_exe()
         .ok()
         .and_then(|p| p.canonicalize().ok());
+    // A candidate counts when it is a file and not this launcher itself (no recursion).
+    let usable = |c: &Path| c.is_file() && c.canonicalize().ok() != me;
+    if let Some(p) = std::env::var_os("SKUA_PERL").filter(|p| !p.is_empty()) {
+        let p = PathBuf::from(p);
+        if usable(&p) {
+            return Some(p);
+        }
+        eprintln!(
+            "perl: warning: SKUA_PERL={} is not a usable perl; searching for Git for Windows",
+            p.display()
+        );
+    }
     if let Some(path) = std::env::var_os("PATH") {
         for d in std::env::split_paths(&path) {
             if !d.join("git.exe").is_file() {
@@ -53,14 +86,16 @@ fn find_perl() -> Option<PathBuf> {
             }
             if let Some(root) = git_root(&d) {
                 let c = root.join("usr").join("bin").join("perl.exe");
-                if c.is_file() && c.canonicalize().ok() != me {
+                if usable(&c) {
                     return Some(c);
                 }
             }
         }
     }
-    let c = PathBuf::from(r"C:\Program Files\Git\usr\bin\perl.exe");
-    (c.is_file() && c.canonicalize().ok() != me).then_some(c)
+    default_git_roots()
+        .into_iter()
+        .map(|r| r.join("usr").join("bin").join("perl.exe"))
+        .find(|c| usable(c))
 }
 
 fn main() -> ExitCode {
@@ -69,7 +104,9 @@ fn main() -> ExitCode {
         return ExitCode::from(127);
     };
     let mut cmd = Command::new(&perl);
-    cmd.args(std::env::args_os().skip(1));
+    for a in std::env::args_os().skip(1) {
+        cmd.raw_arg(msys_args::quote(&a));
+    }
     if let Some(bin) = perl.parent() {
         let mut dirs: Vec<PathBuf> = vec![bin.to_owned()];
         if let Some(p) = std::env::var_os("PATH") {

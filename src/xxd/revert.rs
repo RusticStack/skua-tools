@@ -77,6 +77,10 @@ impl Sink for FileSink {
 }
 
 fn write_fail(e: io::Error) -> Fail {
+    if e.kind() == io::ErrorKind::BrokenPipe {
+        // The reader went away (`xxd -r f | head`): end quietly as a signalled tool does.
+        return Fail::msg(141, "");
+    }
     Fail::msg(3, gnu_error(&e))
 }
 

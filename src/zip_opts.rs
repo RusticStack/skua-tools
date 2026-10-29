@@ -22,7 +22,7 @@ zip [-options] [-b path] [-t mmddyyyy] [-n suffixes] [zipfile list] [-xi list]
   -A   adjust self-extracting exe   -J   junk zipfile prefix (unzipsfx)
   -T   test zipfile integrity       -X   eXclude eXtra file attributes
   -y   store symbolic links as the link instead of the referenced file
-  -e   encrypt                      -n   don't compress these suffixes
+  -e   encrypt (not supported)      -n   don't compress these suffixes
   -h2  show more help
 ";
 
@@ -115,8 +115,10 @@ pub fn parse(args: Vec<String>) -> Result<Opts, ExitCode> {
                 'i' => list = 2,
                 // Accepted, no effect here: no extra attributes written beyond the timestamp,
                 // symlinks are followed, no text conversion, no verbose listing.
-                'X' | 'y' | 'S' | 'g' | 'k' | 'l' | 'v' | 'V' | 'w' | 'e' | 'o' | 'A' | 'J' => {}
-                'b' | 't' | 'n' | 'P' | 'O' | 'F' => {
+                'X' | 'y' | 'S' | 'g' | 'k' | 'l' | 'v' | 'V' | 'w' | 'o' | 'A' | 'J' => {}
+                'e' => return Err(no_encryption()),
+                'P' => return Err(no_encryption()),
+                'b' | 't' | 'n' | 'O' | 'F' => {
                     let _ = it.next();
                     break;
                 }
@@ -125,4 +127,10 @@ pub fn parse(args: Vec<String>) -> Result<Opts, ExitCode> {
         }
     }
     Ok(o)
+}
+
+/// `-e` and `-P`: writing an unencrypted archive after being asked to encrypt would be a silent
+/// security failure, so refuse and write nothing.
+fn no_encryption() -> ExitCode {
+    invalid("encryption (-e, -P) is not supported by Skua Bash's zip; no archive was written")
 }

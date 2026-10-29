@@ -213,6 +213,10 @@ impl Out {
             return Err(io::Error::other("Zip64 is not supported"));
         }
         let cd_start = self.pos()?;
+        // Every entry offset and the directory offset are 32-bit fields: past 4 GB they would wrap.
+        if cd_start >= u64::from(u32::MAX) {
+            return Err(io::Error::other("Zip64 is not supported"));
+        }
         let mut size = 0u64;
         for rec in &self.central {
             self.w.write_all(rec)?;

@@ -250,6 +250,28 @@ pub mod json {
     }
 }
 
+/// For tools that print with `println!`: when the reader of stdout has gone away (`unzip -l x |
+/// head -1`) end quietly with status 141, as a Git Bash tool killed by SIGPIPE does, instead of
+/// the panic message and abort that `println!` would produce. Any other write failure ends with
+/// `write error` and status 1. `cleanup` runs first (remove a temporary file).
+pub fn quiet_exit_on_stdout_failure(cleanup: impl Fn() + Send + Sync + 'static) {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let text = info.to_string();
+        if !text.contains("failed printing to stdout") {
+            previous(info);
+            return;
+        }
+        cleanup();
+        // ERROR_NO_DATA (232) and ERROR_BROKEN_PIPE (109): the pipe was closed by the reader.
+        if text.contains("os error 232") || text.contains("os error 109") {
+            std::process::exit(141);
+        }
+        eprintln!("write error");
+        std::process::exit(1);
+    }));
+}
+
 #[cfg(test)]
 mod tests {
     use super::json::is_json;

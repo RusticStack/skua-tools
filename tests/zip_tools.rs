@@ -257,3 +257,41 @@ fn unzip_refuses_path_escapes_and_patterns() {
         "unzip:  cannot find or open nonexistent.zip, nonexistent.zip.zip or nonexistent.zip.ZIP.\n"
     );
 }
+
+#[test]
+fn zip_refuses_to_encrypt_and_writes_nothing() {
+    let d = sandbox("enc");
+    fs::write(d.join("s.txt"), "secret\n").expect("write");
+    for args in [
+        &["-e", "o.zip", "s.txt"][..],
+        &["-P", "pw", "o.zip", "s.txt"],
+    ] {
+        let o = zip(&d, args);
+        assert_eq!(o.status.code(), Some(16), "{args:?}");
+        assert!(err(&o).contains("encryption"), "{}", err(&o));
+        assert!(!d.join("o.zip").exists());
+    }
+}
+
+#[test]
+fn gzip_version_and_verbose_stdout_wording_as_gnu() {
+    let d = sandbox("gzv");
+    fs::write(d.join("c.txt"), "x\n").expect("write");
+    for (name, first) in [
+        ("gunzip", "gunzip (gzip) 1.14"),
+        ("zcat", "zcat (gzip) 1.14"),
+    ] {
+        let o = gzip_multicall(&d, name, &["--version"]);
+        assert_eq!(out(&o).lines().next(), Some(first), "{name}");
+    }
+    assert_eq!(
+        out(&gzip(&d, &["--version"])).lines().next(),
+        Some("gzip 1.14")
+    );
+    let o = gzip(&d, &["-v", "-c", "c.txt"]);
+    assert!(
+        err(&o).ends_with("-- replaced with stdout\n"),
+        "{}",
+        err(&o)
+    );
+}

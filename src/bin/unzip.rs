@@ -201,6 +201,7 @@ fn corrupt(name: &str, e: &ZipError) -> ExitCode {
 }
 
 fn main() -> ExitCode {
+    skua_tools::quiet_exit_on_stdout_failure(|| {});
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().is_some_and(|a| a == "unzip")
         && std::env::args()

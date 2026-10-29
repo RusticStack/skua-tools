@@ -28,6 +28,14 @@ fn install_ctrl_handler() {
 pub fn exit_code(code: Option<i32>) -> ExitCode {
     match code {
         Some(c) if c as u32 == 0xC000_013A => ExitCode::from(130),
+        // An MSYS/Cygwin program killed by signal N exits with N << 8: report 128 + N as a shell does.
+        Some(c)
+            if (c as u32) & 0xFF == 0
+                && (1..0x80).contains(&(c as u32 >> 8))
+                && (c as u32) <= 0x7F00 =>
+        {
+            ExitCode::from(128 + (c as u32 >> 8) as u8)
+        }
         Some(c) => ExitCode::from((c & 0xFF) as u8),
         None => ExitCode::from(1),
     }

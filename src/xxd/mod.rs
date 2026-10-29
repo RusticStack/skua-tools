@@ -30,6 +30,9 @@ pub fn main_exit() -> ExitCode {
 }
 
 fn fail(f: &Fail) -> i32 {
+    if f.code == 141 {
+        return f.code;
+    }
     let mut err = io::stderr().lock();
     if f.usage {
         let _ = err.write_all(opts::USAGE.as_bytes());

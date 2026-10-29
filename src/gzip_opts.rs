@@ -88,6 +88,8 @@ pub struct Opts {
     pub suffix: String,
     pub level: u32,
     pub names: Vec<String>,
+    /// The name the tool runs as (`gzip`, `gunzip`, `zcat`), for `--version`.
+    pub prog: String,
 }
 
 pub enum Parsed {
@@ -106,6 +108,16 @@ fn missing_arg(what: &str) -> Parsed {
 Try `gzip --help' for more information."
     );
     Parsed::Exit(ExitCode::from(1))
+}
+
+/// `gzip 1.14 ...`; the other names show as `gunzip (gzip) 1.14 ...` as GNU's do.
+fn version_text(prog: &str) -> String {
+    match prog {
+        "gunzip" | "zcat" | "uncompress" => {
+            VERSION.replacen("gzip 1.14", &format!("{prog} (gzip) 1.14"), 1)
+        }
+        _ => VERSION.to_owned(),
+    }
 }
 
 pub fn parse(args: Vec<String>, mut o: Opts) -> Parsed {
@@ -185,8 +197,8 @@ pub fn parse(args: Vec<String>, mut o: Opts) -> Parsed {
                 }
             }
             'h' => return Parsed::Exit(out_text(HELP)),
-            'V' => return Parsed::Exit(out_text(VERSION)),
-            'L' => return Parsed::Exit(out_text(VERSION)),
+            'V' => return Parsed::Exit(out_text(&version_text(&o.prog))),
+            'L' => return Parsed::Exit(out_text(&version_text(&o.prog))),
             _ => {}
         }
     }

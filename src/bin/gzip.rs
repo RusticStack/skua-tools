@@ -162,10 +162,8 @@ impl Gz {
         match res {
             Ok((i, o)) => {
                 if self.o.verbose > 0 {
-                    eprintln!(
-                        "stdin:\t{} -- created stdout",
-                        ratio(i as i64 - (o as i64 - 18), i as i64)
-                    );
+                    // GNU gzip 1.14 prints just the ratio for a stream.
+                    eprintln!("{}", ratio(i as i64 - (o as i64 - 18), i as i64));
                 }
             }
             Err(e) => self.io_failure("stdout", &e),
@@ -217,7 +215,7 @@ impl Gz {
             return match res {
                 Ok((i, o)) => {
                     let hdr = 18 + name.as_ref().map_or(0, |n| n.len() as u64 + 1);
-                    self.verbose_line(shown, "created stdout", i, o, hdr);
+                    self.verbose_line(shown, "replaced with stdout", i, o, hdr);
                 }
                 Err(e) => self.io_failure(shown, &e),
             };
@@ -345,6 +343,7 @@ fn main() -> ExitCode {
     }
     let mut o = Opts {
         level: 6,
+        prog: name.clone(),
         ..Opts::default()
     };
     match name.as_str() {

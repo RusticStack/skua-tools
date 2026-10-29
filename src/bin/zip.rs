@@ -54,7 +54,15 @@ fn percent(n: u64, m: u64) -> u64 {
     }
 }
 
+/// The temporary archive being written, removed if stdout fails mid-run.
+static TMP: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
 fn main() -> ExitCode {
+    skua_tools::quiet_exit_on_stdout_failure(|| {
+        if let Some(p) = TMP.get() {
+            let _ = fs::remove_file(p);
+        }
+    });
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() {
         print!("{HELP}");
@@ -183,6 +191,7 @@ fn main() -> ExitCode {
             .unwrap_or(Path::new("."));
         dir.join(format!("zi{}", std::process::id()))
     };
+    let _ = TMP.set(tmp_path.clone());
     let tmp = match File::create(&tmp_path) {
         Ok(f) => f,
         Err(_) => {
