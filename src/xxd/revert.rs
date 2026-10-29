@@ -281,7 +281,20 @@ pub fn stdout_file_sink() -> Option<FileSink> {
         File::from(h)
     };
     let mut f = f;
-    // Seeking only works on regular files.
+    // Seeking only works on regular files: a Windows anonymous pipe accepts SetFilePointerEx
+    // without moving anything (Skua Bash's pipes), so ask for the file type first.
+    #[cfg(windows)]
+    {
+        use std::os::windows::io::AsRawHandle;
+        unsafe extern "system" {
+            fn GetFileType(handle: *mut std::ffi::c_void) -> u32;
+        }
+        const FILE_TYPE_DISK: u32 = 1;
+        // SAFETY: a plain query on a handle that `f` owns.
+        if unsafe { GetFileType(f.as_raw_handle()) } != FILE_TYPE_DISK {
+            return None;
+        }
+    }
     f.stream_position().ok()?;
     Some(FileSink::new(f))
 }
