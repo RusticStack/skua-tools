@@ -3,7 +3,7 @@ name = "skua-tools"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "Git Bash-compatible tools for Skua Bash: file, dos2unix, unix2dos, clear, ps, pgrep, pkill, gzip, gunzip, zcat, unzip, zip, xxd, column, iconv, start, egrep, fgrep, perl"
+description = "Git Bash-compatible tools for Skua Bash: file, dos2unix, unix2dos, clear, ps, pgrep, pkill, gzip, gunzip, zcat, unzip, zip, xxd, column, iconv, start, egrep, fgrep, perl, id"
 repository = "https://github.com/RusticStack/skua-tools"
 publish = false
 [[bin]]
@@ -69,6 +69,10 @@ path = "src/bin/fgrep.rs"
 [[bin]]
 name = "perl"
 path = "src/bin/perl.rs"
+
+[[bin]]
+name = "id"
+path = "src/bin/id.rs"
 
 [dependencies]
 encoding_rs = "0.8.35"

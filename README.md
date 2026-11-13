@@ -1,6 +1,6 @@
 # skua-tools
 
-`file`, `dos2unix`, `unix2dos`, `clear`, `ps`, `pgrep`, `pkill`, `gzip`/`gunzip`/`zcat`, `unzip`, `zip`, `xxd`, `column`, `iconv`, `start`, `egrep`, `fgrep` and `perl` for Skua Bash, the bash-compatible shell bundled with Skua on
+`file`, `dos2unix`, `unix2dos`, `clear`, `ps`, `pgrep`, `pkill`, `gzip`/`gunzip`/`zcat`, `unzip`, `zip`, `xxd`, `column`, `iconv`, `start`, `egrep`, `fgrep`, `perl` and `id` for Skua Bash, the bash-compatible shell bundled with Skua on
 Windows. Git Bash ships these (libmagic `file` 5.4x, dos2unix 7.x) and coding agents use them,
 for example `git ls-files | xargs file` to see line endings. No existing Rust implementation gave
 Git Bash's output, so these are small native programs written for that output.
@@ -25,6 +25,7 @@ Git Bash's output, so these are small native programs written for that output.
 - `iconv`: GNU libiconv 1.19 behaviour for UTF-8/16/32, UCS, ASCII, Latin-1, Windows-125x, ISO-8859-x, `//TRANSLIT`, `//IGNORE`; CJK and a few others follow WHATWG tables.
 - `start`: `cmd.exe /c start "" ARGS` with complete escaping; `SKUA_START_DRY_RUN=1` prints instead of running.
 - `egrep` / `fgrep`: `grep -E` / `grep -F` launchers (the sibling `grep.exe` first, else `grep` on PATH).
+- `id`: Git Bash's (GNU coreutils 8.32 on Cygwin) `id` with Git for Windows' default `nsswitch.conf`: uid/gid from the process token with Cygwin's SID mapping (`0x30000 + RID` for local accounts, well-known SIDs fixed), user names from Windows accounts, no group names (`cannot find name for group ID`, status 1), the current user's groups = the primary group. All options, errors and statuses as Git Bash's; `--version` says `id (skua-tools)`.
 - `perl`: launcher only. Runs Git for Windows' perl (`SKUA_PERL`, then Git found on PATH, then `C:\Program Files\Git\usr\bin\perl.exe`).
 
 Built by Skua Bash's `skua/build-uutils.ps1` (entry in `skua/uutils.toml`). MIT.
