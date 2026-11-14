@@ -1,9 +1,10 @@
 //! Small tools for Skua Bash that Git Bash has and uutils does not: `file`, `dos2unix`,
 //! `unix2dos`. Shared code: text classification, a JSON syntax check, GNU error text, finding
-//! Git for Windows (`gitwin`), resolving Python (`python`).
+//! Git for Windows (`gitwin`), resolving Python (`python`), wget's options (`wget`).
 
 pub mod gitwin;
 pub mod python;
+pub mod wget;
 
 /// GNU's text (as Git Bash's tools print it) for an I/O error: Windows' own message is in the
 /// user's UI language.
