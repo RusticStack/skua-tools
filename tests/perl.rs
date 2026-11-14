@@ -4,7 +4,8 @@
 use std::process::{Command, Output};
 
 fn have_git_perl() -> bool {
-    std::path::Path::new(r"C:\Program Files\Git\usr\bin\perl.exe").is_file()
+    use skua_tools::gitwin;
+    gitwin::find_tool(&gitwin::Probe::from_env(), "perl.exe").is_ok()
         || std::env::var_os("SKUA_PERL").is_some()
 }
 
@@ -89,6 +90,7 @@ fn without_git_perl_says_so_and_exits_127() {
         .env("LOCALAPPDATA", &empty)
         .env("USERPROFILE", &empty)
         .env("SCOOP", &empty)
+        .env("SKUA_TOOLS_IGNORE_REGISTRY", "1")
         .output()
         .expect("run");
     let _ = std::fs::remove_dir_all(&empty);
@@ -99,6 +101,7 @@ fn without_git_perl_says_so_and_exits_127() {
         "{err}"
     );
     assert!(err.contains("perl: not found"), "{err}");
+    assert!(err.contains("InstallPath under HKLM"), "{err}");
 }
 
 /// `SKUA_PERL` naming the launcher itself must not recurse.

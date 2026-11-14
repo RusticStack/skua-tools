@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
 fn git_id() -> Option<PathBuf> {
-    let p = PathBuf::from(r"C:\Program Files\Git\usr\bin\id.exe");
-    p.is_file().then_some(p)
+    use skua_tools::gitwin;
+    gitwin::find_tool(&gitwin::Probe::from_env(), "id.exe").ok()
 }
 
 fn run(exe: &std::path::Path, args: &[&str]) -> Output {

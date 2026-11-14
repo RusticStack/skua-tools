@@ -26,6 +26,6 @@ Git Bash's output, so these are small native programs written for that output.
 - `start`: `cmd.exe /c start "" ARGS` with complete escaping; `SKUA_START_DRY_RUN=1` prints instead of running.
 - `egrep` / `fgrep`: `grep -E` / `grep -F` launchers (the sibling `grep.exe` first, else `grep` on PATH).
 - `id`: Git Bash's (GNU coreutils 8.32 on Cygwin) `id` with Git for Windows' default `nsswitch.conf`: uid/gid from the process token with Cygwin's SID mapping (`0x30000 + RID` for local accounts, well-known SIDs fixed), user names from Windows accounts, no group names (`cannot find name for group ID`, status 1), the current user's groups = the primary group. All options, errors and statuses as Git Bash's; `--version` says `id (skua-tools)`.
-- `perl`: launcher only. Runs Git for Windows' perl (`SKUA_PERL`, then Git found on PATH, then `C:\Program Files\Git\usr\bin\perl.exe`).
+- `perl`: launcher only. Runs Git for Windows' perl: `SKUA_PERL`, else the first Git for Windows install found (`git.exe` on PATH, `%ProgramFiles%\Git`, `%LOCALAPPDATA%\Programs\Git`, `InstallPath` under `HKLM`/`HKCU\SOFTWARE\GitForWindows`, Scoop) that has `perl.exe` in `usr\bin`, `ucrt64\bin`, `mingw64\bin` or `clangarm64\bin`. An install is recognised by `cmd\git.exe` only (the path Git for Windows promises to keep; 2.56 moved `mingw64` to `ucrt64`). Not found: one line saying what was looked for, status 127. The lookup is `skua_tools::gitwin`.
 
 Built by Skua Bash's `skua/build-uutils.ps1` (entry in `skua/uutils.toml`). MIT.
