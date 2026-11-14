@@ -400,7 +400,10 @@ pub fn combine(statuses: &[u8]) -> u8 {
 
 /// The curl arguments for one URL (everything but the output, which the caller wires).
 pub fn curl_args(o: &Opts, url: &str, resume_from: Option<u64>) -> Vec<String> {
+    // `-q` (`--disable`) must come first: curl then reads no .curlrc, so nothing in the user's
+    // curl config changes what wget does.
     let mut a: Vec<String> = [
+        "-q",
         "--silent",
         "--show-error",
         "--fail",
@@ -589,7 +592,7 @@ mod tests {
         let a = curl_args(&o, "http://h/u", Some(5));
         let s = a.join(" ");
         assert!(
-            s.starts_with("--silent --show-error --fail --location --max-redirs 20"),
+            s.starts_with("-q --silent --show-error --fail --location --max-redirs 20"),
             "{s}"
         );
         assert!(

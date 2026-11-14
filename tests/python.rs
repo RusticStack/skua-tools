@@ -41,6 +41,8 @@ fn python3_runs_python_exe_past_the_store_stubs() {
     std::fs::write(apps.join("python.exe"), b"").expect("stub");
     let real = d.sub("Python315");
     std::fs::copy(cmd_exe(), real.join("python.exe")).expect("copy");
+    // Marks the install as Python 3: python3 never falls back to a Python 2 python.exe.
+    std::fs::write(real.join("python315.dll"), b"").expect("dll");
     let path = std::env::join_paths([apps, real]).expect("join");
     for launcher in [env!("CARGO_BIN_EXE_python3"), env!("CARGO_BIN_EXE_python")] {
         let out = Command::new(launcher)
@@ -94,7 +96,10 @@ fn nothing_installed_fails_fast_with_127() {
         .expect("run");
     let err = String::from_utf8_lossy(&out.stderr);
     assert_eq!(out.status.code(), Some(127), "{err}");
-    assert!(err.starts_with("python3: not found: "), "{err}");
+    assert!(
+        err.starts_with("bash: python3: command not found ("),
+        "{err}"
+    );
     assert_eq!(err.lines().count(), 1, "{err}");
     assert!(start.elapsed() < std::time::Duration::from_secs(10));
 }

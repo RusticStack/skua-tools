@@ -82,10 +82,16 @@ pub fn resolve(
     search: &Search,
     is_launcher: &dyn Fn(&Path) -> bool,
 ) -> Option<Found> {
-    for dir in &search.path {
+    let python3 = wanted.eq_ignore_ascii_case("python3");
+    // Only absolute PATH entries: an empty or relative one (`.`) would let the current
+    // directory pick the interpreter.
+    let dirs = || search.path.iter().filter(|d| d.is_absolute());
+    for dir in dirs() {
         for name in names(wanted) {
             let c = dir.join(name);
-            if runnable(&c) && !is_launcher(&c) {
+            // `python3` never falls back to a Python 2 `python.exe`.
+            let right_version = !python3 || name == "python3.exe" || is_python3(&c);
+            if right_version && runnable(&c) && !is_launcher(&c) {
                 return Some(Found {
                     program: c,
                     leading: vec![],
@@ -93,25 +99,44 @@ pub fn resolve(
             }
         }
     }
-    let leading = if wanted.eq_ignore_ascii_case("python3") {
-        vec!["-3"]
-    } else {
-        vec![]
-    };
-    search
-        .path
-        .iter()
+    let leading = if python3 { vec!["-3"] } else { vec![] };
+    dirs()
         .map(|d| d.join("py.exe"))
         .chain(search.py_launchers.iter().cloned())
         .find(|c| runnable(c) && !is_launcher(c))
         .map(|program| Found { program, leading })
 }
 
-/// The one-line message for nothing found.
+/// Whether the `python.exe` at `exe` is a Python 3: a `python3*.dll` beside it (an install), or a
+/// `pyvenv.cfg` one level up whose version is 3 (a venv's `Scripts`). Python 2 has neither.
+pub fn is_python3(exe: &Path) -> bool {
+    let Some(dir) = exe.parent() else {
+        return false;
+    };
+    let has_dll = std::fs::read_dir(dir).is_ok_and(|entries| {
+        entries.filter_map(Result::ok).any(|e| {
+            let name = e.file_name().to_string_lossy().to_ascii_lowercase();
+            name.starts_with("python3") && name.ends_with(".dll")
+        })
+    });
+    has_dll
+        || dir.parent().is_some_and(|venv| {
+            std::fs::read_to_string(venv.join("pyvenv.cfg")).is_ok_and(|cfg| {
+                cfg.lines().any(|l| {
+                    let (key, value) = l.split_once('=').unwrap_or((l, ""));
+                    matches!(key.trim(), "version" | "version_info")
+                        && value.trim().starts_with('3')
+                })
+            })
+        })
+}
+
+/// The one-line message for nothing found: Git Bash's "command not found", then what was looked
+/// for.
 pub fn not_found_message(wanted: &str) -> String {
     let [a, b] = names(wanted);
     format!(
-        "{wanted}: not found: no {a} or {b} on PATH (Microsoft Store aliases skipped) and no py launcher; install Python (python.org, or winget install Python.Python.3) and put it on PATH"
+        "bash: {wanted}: command not found (no {a} or {b} on PATH, Microsoft Store aliases skipped, and no py launcher; install Python: python.org, or winget install Python.Python.3)"
     )
 }
 
@@ -337,6 +362,7 @@ mod tests {
         t.file(r"WindowsApps\python.exe", b"");
         t.file(r"WindowsApps\python3.exe", b"");
         let real = t.file(r"Python315\python.exe", EXE);
+        t.file(r"Python315\python315.dll", EXE);
         let s = Search {
             path: vec![t.0.join("WindowsApps"), t.0.join("Python315")],
             py_launchers: vec![],
@@ -352,6 +378,10 @@ mod tests {
     fn the_first_directory_with_either_name_wins() {
         let t = Tmp::new("order");
         let venv = t.file(r"venv\Scripts\python.exe", EXE);
+        t.file(
+            r"venv\pyvenv.cfg",
+            b"home = C:\\Python315\nversion = 3.15.0\n",
+        );
         t.file(r"Py\python3.exe", EXE);
         let s = Search {
             path: vec![t.0.join(r"venv\Scripts"), t.0.join("Py")],
@@ -396,6 +426,7 @@ mod tests {
         t.file(r"skua\bin\python3.exe", &me);
         t.file(r"skua\bin\python.exe", &me);
         let real = t.file(r"Python\python.exe", EXE);
+        t.file(r"Python\python3.dll", EXE);
         let s = Search {
             path: vec![t.0.join(r"skua\bin"), t.0.join("Python")],
             py_launchers: vec![],
@@ -414,8 +445,55 @@ mod tests {
         };
         assert_eq!(resolve("python3", &s, &not_launcher), None);
         let msg = not_found_message("python3");
-        assert!(msg.starts_with("python3: not found: no python3.exe or python.exe on PATH"));
+        assert!(
+            msg.starts_with(
+                "bash: python3: command not found (no python3.exe or python.exe on PATH"
+            )
+        );
         assert!(!msg.contains('\n'));
+    }
+
+    #[test]
+    fn python3_never_falls_back_to_python_2() {
+        let t = Tmp::new("py2");
+        t.file(r"Python27\python.exe", EXE);
+        t.file(r"Python27\python27.dll", EXE);
+        let s = Search {
+            path: vec![t.0.join("Python27")],
+            py_launchers: vec![],
+        };
+        assert_eq!(resolve("python3", &s, &not_launcher), None);
+        // `python` still runs it, as Git Bash would.
+        assert_eq!(
+            resolve("python", &s, &not_launcher),
+            found(t.0.join(r"Python27\python.exe"), &[])
+        );
+        // A venv of Python 2 is not a Python 3 either.
+        t.file(r"venv2\Scripts\python.exe", EXE);
+        t.file(r"venv2\pyvenv.cfg", b"version = 2.7.18\n");
+        let s = Search {
+            path: vec![t.0.join(r"venv2\Scripts")],
+            py_launchers: vec![],
+        };
+        assert_eq!(resolve("python3", &s, &not_launcher), None);
+    }
+
+    #[test]
+    fn relative_and_empty_path_entries_are_skipped() {
+        let t = Tmp::new("relative");
+        // A python3.exe in the current directory must not win through `.` or an empty entry.
+        t.file(r"here\python3.exe", EXE);
+        let real = t.file(r"Py\python3.exe", EXE);
+        let s = Search {
+            path: vec![
+                PathBuf::new(),
+                PathBuf::from("."),
+                PathBuf::from(r"here"),
+                t.0.join("Py"),
+            ],
+            py_launchers: vec![],
+        };
+        assert_eq!(resolve("python3", &s, &not_launcher), found(real, &[]));
     }
 
     fn alias_buffer(package: &str, app: &str, target: &str) -> Vec<u8> {

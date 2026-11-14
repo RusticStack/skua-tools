@@ -177,6 +177,24 @@ fn saves_to_the_url_file_name_and_never_overwrites() {
         Some(0)
     );
     assert_eq!(d.read(r"sub\data.bin"), b"\x00\x01\x02");
+    // `-O FILE` is used as given: `-P` does not apply to it (GNU Wget: -O is like redirection).
+    assert_eq!(
+        wget(
+            &d.0,
+            &[
+                "-q",
+                "-P",
+                "sub",
+                "-O",
+                "one.bin",
+                &format!("{base}/dir/data.bin")
+            ]
+        )
+        .status
+        .code(),
+        Some(0)
+    );
+    assert_eq!(d.read("one.bin"), b"\x00\x01\x02");
 }
 
 #[test]

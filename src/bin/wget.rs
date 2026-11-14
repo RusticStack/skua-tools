@@ -69,8 +69,9 @@ fn open_target(o: &Opts, url: &str, first: bool) -> std::io::Result<(Target, Opt
         return Ok((Target::Stdout, None));
     }
     if let Some(out) = &o.output {
-        // `-O FILE`: one file for every URL, truncated once (appended to with `-c`).
-        let path = under(PathBuf::from(out));
+        // `-O FILE`: one file for every URL, truncated once (appended to with `-c`). As in GNU
+        // Wget, `-O` works like shell redirection: FILE is used as given, `-P` does not apply.
+        let path = PathBuf::from(out);
         let existed = path.exists();
         let mut opts = OpenOptions::new();
         if first && !o.cont {
@@ -95,9 +96,18 @@ fn open_target(o: &Opts, url: &str, first: bool) -> std::io::Result<(Target, Opt
         let have = f.metadata()?.len();
         return Ok((Target::File(path, have, false), Some(f)));
     }
-    let path = unused_name(&path);
-    let f = File::create(&path)?;
-    Ok((Target::File(path, 0, true), Some(f)))
+    // `create_new`: never truncates a file that appeared after `unused_name` looked; then the
+    // next free name is tried.
+    let mut last = None;
+    for _ in 0..100 {
+        let name = unused_name(&path);
+        match OpenOptions::new().write(true).create_new(true).open(&name) {
+            Ok(f) => return Ok((Target::File(name, 0, true), Some(f))),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = Some(e),
+            Err(e) => return Err(e),
+        }
+    }
+    Err(last.unwrap_or_else(|| std::io::Error::from(std::io::ErrorKind::AlreadyExists)))
 }
 
 fn shown(p: &Path) -> String {
@@ -148,10 +158,14 @@ fn fetch(curl: &Path, o: &Opts, raw_url: &str, first: bool) -> u8 {
             return 1;
         }
     };
-    let mut err = String::new();
-    if let Some(mut s) = child.stderr.take() {
-        let _ = s.read_to_string(&mut err);
+    // Bytes, then lossy: curl's messages can carry non-UTF-8 (a URL, a server's text).
+    let mut raw = Vec::new();
+    if let Some(mut s) = child.stderr.take()
+        && let Err(e) = s.read_to_end(&mut raw)
+    {
+        eprintln!("wget: reading curl's errors: {e}");
     }
+    let err = String::from_utf8_lossy(&raw);
     let code = child.wait().ok().and_then(|s| s.code()).unwrap_or(1);
     let message = err
         .lines()

@@ -120,7 +120,9 @@ pub fn installs(probe: &Probe) -> Vec<GitForWindows> {
         }
     };
     if let Some(path) = &probe.path {
-        for dir in std::env::split_paths(path) {
+        // A relative or empty entry (`.`, `bin`) names a directory under the current one, which
+        // a checkout can plant a `git.exe` in: only absolute entries count.
+        for dir in std::env::split_paths(path).filter(|d| d.is_absolute()) {
             if dir.join("git.exe").is_file()
                 && let Some(root) = root_of_git_dir(&dir)
             {
@@ -323,6 +325,23 @@ mod tests {
             Ok(root.join(r"ucrt64\bin\git.exe"))
         );
         assert_eq!(installs(&probe)[0].git(), root.join(r"cmd\git.exe"));
+    }
+
+    #[test]
+    fn relative_and_empty_path_entries_are_skipped() {
+        let t = Tmp::new("relative");
+        let root = ucrt64(&t, "Git");
+        // `src` exists under the test's current directory (the crate root) and is not absolute.
+        let probe = Probe {
+            path: path_of(&[
+                PathBuf::new(),
+                PathBuf::from("."),
+                PathBuf::from("src"),
+                root.join("cmd"),
+            ]),
+            roots: vec![],
+        };
+        assert_eq!(installs(&probe), vec![GitForWindows { root }]);
     }
 
     #[test]
