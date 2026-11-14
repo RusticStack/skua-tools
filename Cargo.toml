@@ -2,6 +2,7 @@
 name = "skua-tools"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.100.0"
 license = "MIT"
 description = "Git Bash-compatible tools for Skua Bash: file, dos2unix, unix2dos, clear, ps, pgrep, pkill, gzip, gunzip, zcat, unzip, zip, xxd, column, iconv, start, egrep, fgrep, perl, id, python, python3, wget"
 repository = "https://github.com/RusticStack/skua-tools"

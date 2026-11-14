@@ -45,12 +45,15 @@ fn safe_name(c: &mut Ctx, name: &str) -> Option<String> {
     for p in n.split('/') {
         match p {
             "" | "." => {}
-            ".." => skipped = true,
-            p => parts.push(
-                p.chars()
+            // `..`, and `...` (Windows drops trailing dots, so it could mean `..`).
+            p if p.trim_matches(['.', ' ']).is_empty() => skipped = true,
+            p => {
+                let clean: String = p
+                    .chars()
                     .map(|ch| if ":*?\"<>|".contains(ch) { '_' } else { ch })
-                    .collect(),
-            ),
+                    .collect();
+                parts.push(skua_tools::windows_safe_component(&clean).into_owned());
+            }
         }
     }
     if skipped {
@@ -184,6 +187,10 @@ pub fn run(o: &Opts, name: &str, arch: &Archive, f: &mut File) -> u8 {
     };
     if o.quiet == 0 && !o.pipe {
         println!("Archive:  {name}");
+    }
+    if zipfmt::has_overlap(&arch.entries) {
+        eprintln!("error:  invalid zip file with overlapped components (possible zip bomb)");
+        return 3;
     }
     if let Some(d) = &o.exdir {
         let path = Path::new(d);

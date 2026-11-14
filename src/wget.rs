@@ -341,10 +341,11 @@ pub fn file_name(url: &str) -> String {
             }
         })
         .collect();
-    if safe.is_empty() || safe == "." || safe == ".." {
+    // Only dots and spaces (`.`, `..`, `...`): Windows drops trailing dots, so none names a file.
+    if safe.trim_matches(['.', ' ']).is_empty() {
         "index.html".to_owned()
     } else {
-        safe
+        crate::windows_safe_component(&safe).into_owned()
     }
 }
 
@@ -410,6 +411,8 @@ pub fn curl_args(o: &Opts, url: &str, resume_from: Option<u64>) -> Vec<String> {
         "--location",
         "--max-redirs",
         "20",
+        "--proto",
+        "=http,https,ftp,ftps",
     ]
     .iter()
     .map(|s| (*s).to_owned())
@@ -568,6 +571,8 @@ mod tests {
         assert_eq!(file_name("https://h/dir/"), "index.html");
         assert_eq!(file_name("http://h/a%20b.txt"), "a b.txt");
         assert_eq!(file_name("http://h/x%2Fy"), "x%2Fy");
+        assert_eq!(file_name("http://h/nul.txt"), "_nul.txt");
+        assert_eq!(file_name("http://h/..."), "index.html");
         assert_eq!(with_scheme("example.com/x"), "http://example.com/x");
     }
 
@@ -607,6 +612,7 @@ mod tests {
             s.contains("--data-raw a") && s.contains("--continue-at 5"),
             "{s}"
         );
+        assert!(s.contains("--proto =http,https,ftp,ftps"), "{s}");
         assert!(s.ends_with("--url http://h/u"), "{s}");
     }
 }

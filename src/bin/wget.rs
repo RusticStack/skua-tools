@@ -12,9 +12,12 @@ fn find_curl() -> Option<PathBuf> {
     let system = std::env::var_os("SystemRoot")
         .filter(|v| !v.is_empty())
         .map(|r| PathBuf::from(r).join("System32").join("curl.exe"));
+    // Only absolute `PATH` entries: a relative or empty one (`.`) names the current directory,
+    // where a checkout could plant a `curl.exe`.
     let on_path = std::env::var_os("PATH")
         .map(|p| {
             std::env::split_paths(&p)
+                .filter(|d| d.is_absolute())
                 .map(|d| d.join("curl.exe"))
                 .collect::<Vec<_>>()
         })

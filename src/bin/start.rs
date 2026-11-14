@@ -78,7 +78,15 @@ fn main() -> ExitCode {
     }
     let comspec = std::env::var_os("COMSPEC")
         .filter(|c| !c.is_empty())
-        .unwrap_or_else(|| "cmd.exe".into());
+        // Without COMSPEC, the system's cmd.exe by its full path (a bare name is searched for).
+        .unwrap_or_else(|| {
+            std::env::var_os("SystemRoot")
+                .filter(|v| !v.is_empty())
+                .map_or_else(
+                    || "cmd.exe".into(),
+                    |r| std::path::Path::new(&r).join("System32").join("cmd.exe").into(),
+                )
+        });
     let mut cmd = Command::new(comspec);
     cmd.arg("/c").raw_arg(&line);
     match cmd.status() {
