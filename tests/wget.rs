@@ -337,3 +337,23 @@ fn usage_help_and_version() {
     let out = wget(&d.0, &["--help"]);
     assert!(text(&out.stdout).contains("--post-data=STRING"));
 }
+
+/// A reader that closes the pipe early (`wget --version | head -1`) ends wget quietly with 141.
+#[test]
+fn closed_stdout_is_quiet() {
+    use std::io::Read as _;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_wget"))
+        .arg("--help")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("run wget");
+    drop(child.stdout.take());
+    let mut err = String::new();
+    if let Some(mut e) = child.stderr.take() {
+        let _ = e.read_to_string(&mut err);
+    }
+    let status = child.wait().expect("wait");
+    assert!(!err.contains("panicked"), "{err}");
+    assert!(matches!(status.code(), Some(0 | 141)), "{status:?}");
+}

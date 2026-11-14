@@ -218,6 +218,8 @@ fn fetch(curl: &Path, o: &Opts, raw_url: &str, first: bool) -> u8 {
 }
 
 fn main() -> ExitCode {
+    // `wget --version | head -1`, `wget -qO- URL | head`: a closed stdout ends quietly with 141.
+    skua_tools::quiet_exit_on_stdout_failure(|| {});
     let args: Vec<String> = std::env::args().skip(1).collect();
     let o = match wget::parse(&args) {
         Parsed::Run(o) => o,
