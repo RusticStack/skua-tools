@@ -208,7 +208,13 @@ fn main() -> ExitCode {
         Parsed::Run(o) => o,
         Parsed::Done(code) => return ExitCode::from(code),
     };
-    let sys = procs::system();
+    let sys = match procs::system() {
+        Ok(sys) => sys,
+        Err(e) => {
+            eprintln!("ps: cannot read the process list: {e}");
+            return ExitCode::from(1);
+        }
+    };
     let all = procs::collect(&sys);
     let own = procs::own_uid(&all);
     let now = SystemTime::now()

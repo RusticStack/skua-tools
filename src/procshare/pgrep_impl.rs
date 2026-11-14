@@ -147,7 +147,13 @@ pub fn run(kill: bool) -> ExitCode {
         Ok(None) => return ExitCode::SUCCESS,
         Err(code) => return code,
     };
-    let sys = procs::system();
+    let sys = match procs::system() {
+        Ok(sys) => sys,
+        Err(e) => {
+            eprintln!("{prog}: cannot read the process list: {e}");
+            return ExitCode::from(3);
+        }
+    };
     let all = procs::collect(&sys);
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -90,7 +90,7 @@ path = "src/bin/wget.rs"
 encoding_rs = "0.8.35"
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 regex-lite = "0.1.9"
-sysinfo = { version = "0.39.6", default-features = false, features = ["system", "user"] }
+sysinfo = { version = "0.40.3", default-features = false, features = ["system", "user"] }
 
 [profile.release]
 opt-level = "s"

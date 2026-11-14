@@ -82,15 +82,15 @@ fn creation_ms(_pid: u32) -> Option<u64> {
     None
 }
 
-/// A freshly refreshed view of all processes.
-pub fn system() -> System {
-    let mut sys = System::new();
+/// A freshly refreshed view of all processes (sysinfo 0.40 can fail to set one up).
+pub fn system() -> Result<System, sysinfo::Error> {
+    let mut sys = System::new()?;
     let kind = ProcessRefreshKind::nothing()
         .with_cmd(UpdateKind::Always)
         .with_exe(UpdateKind::Always)
         .with_user(UpdateKind::Always);
     sys.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
-    sys
+    Ok(sys)
 }
 
 /// Drops `.exe` (any case) from an image name.
@@ -129,7 +129,8 @@ pub fn unix_command_line(argv: &[String]) -> String {
 
 /// Every process except the idle process, ordered by PID.
 pub fn collect(sys: &System) -> Vec<Proc> {
-    let boot = System::boot_time();
+    // Only a fallback for processes without a start time: 0 when the boot time is unknown.
+    let boot = System::boot_time().unwrap_or(0);
     let mut out: Vec<Proc> = sys
         .processes()
         .values()
@@ -202,7 +203,7 @@ mod tests {
 
     #[test]
     fn lists_itself() {
-        let sys = system();
+        let sys = system().unwrap();
         let procs = collect(&sys);
         assert!(procs.iter().any(|p| p.pid == std::process::id()));
         assert!(procs.windows(2).all(|w| w[0].pid <= w[1].pid));
