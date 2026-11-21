@@ -3,6 +3,7 @@
 
 use std::process::{Command, ExitCode};
 
+#[cfg(windows)]
 unsafe extern "system" {
     fn SetConsoleCtrlHandler(
         handler: Option<unsafe extern "system" fn(u32) -> i32>,
@@ -12,10 +13,12 @@ unsafe extern "system" {
 
 /// Swallow Ctrl+C and Ctrl+Break in the launcher: the child shares the console, gets the event
 /// too, and we report how it ended. (Not "ignore": that flag would be inherited by the child.)
+#[cfg(windows)]
 unsafe extern "system" fn swallow(kind: u32) -> i32 {
     i32::from(kind == 0 || kind == 1)
 }
 
+#[cfg(windows)]
 fn install_ctrl_handler() {
     // SAFETY: registers a handler that only returns a constant.
     unsafe {
@@ -25,6 +28,7 @@ fn install_ctrl_handler() {
 
 /// An exit status as a shell sees it: Ctrl+C status (0xC000013A) becomes 130, other values wrap
 /// to 8 bits.
+#[cfg(windows)]
 pub fn exit_code(code: Option<i32>) -> ExitCode {
     match code {
         Some(c) if c as u32 == 0xC000_013A => ExitCode::from(130),
@@ -42,16 +46,62 @@ pub fn exit_code(code: Option<i32>) -> ExitCode {
 }
 
 /// Run `cmd` with inherited stdio and return its status; `name` prefixes the error on failure.
+#[cfg(windows)]
 pub fn run(name: &str, mut cmd: Command) -> ExitCode {
     install_ctrl_handler();
     match cmd.status() {
         Ok(status) => exit_code(status.code()),
-        Err(e) => {
+        Err(e) => cannot_run(name, &cmd, &e),
+    }
+}
+
+/// Off Windows the launcher becomes `cmd` (`exec`): the same PID, signals and exit status, as
+/// the `exec grep -E "$@"` scripts these launchers stand for.
+#[cfg(not(windows))]
+pub fn run(name: &str, mut cmd: Command) -> ExitCode {
+    use std::os::unix::process::CommandExt as _;
+    let e = cmd.exec();
+    cannot_run(name, &cmd, &e)
+}
+
+fn cannot_run(name: &str, cmd: &Command, e: &std::io::Error) -> ExitCode {
+    eprintln!(
+        "{name}: cannot run {}: {e}",
+        cmd.get_program().to_string_lossy()
+    );
+    ExitCode::from(126)
+}
+
+/// The first `prog` on `PATH` that is not this executable (nor a link to it).
+#[cfg(not(windows))]
+#[allow(dead_code)]
+pub fn on_path_not_me(prog: &str) -> Option<std::path::PathBuf> {
+    let me = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.canonicalize().ok());
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .filter(|d| d.is_absolute())
+        .map(|d| d.join(prog))
+        .find(|c| c.is_file() && c.canonicalize().ok() != me)
+}
+
+/// For the commands that only mean something on Windows (`id`, `ps`, `pgrep`, `pkill`, `perl`):
+/// every Unix has its own, so become that one. 127 when there is none.
+#[cfg(not(windows))]
+#[allow(dead_code)]
+pub fn system_tool(name: &str) -> ExitCode {
+    match on_path_not_me(name) {
+        Some(tool) => {
+            let mut cmd = Command::new(tool);
+            cmd.args(std::env::args_os().skip(1));
+            run(name, cmd)
+        }
+        None => {
             eprintln!(
-                "{name}: cannot run {}: {e}",
-                cmd.get_program().to_string_lossy()
+                "{name}: command not found (skua-tools' {name} is for Windows; here it runs the system's)"
             );
-            ExitCode::from(126)
+            ExitCode::from(127)
         }
     }
 }

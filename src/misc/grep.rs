@@ -28,14 +28,15 @@ pub fn find_tool(prog: &str) -> Option<PathBuf> {
 /// `egrep` and `fgrep`: `grep <flag> ARGS...`, bundled grep first. Git Bash's are two-line
 /// `exec grep -E "$@"` scripts: no warning, same stdin, same status.
 pub fn grep_wrapper(name: &str, flag: &str) -> ExitCode {
-    let sibling = find_tool("grep.exe").filter(|p| {
+    let grep = format!("grep{}", std::env::consts::EXE_SUFFIX);
+    let sibling = find_tool(&grep).filter(|p| {
         p.parent()
             == std::env::current_exe()
                 .ok()
                 .as_deref()
                 .and_then(Path::parent)
     });
-    let on_path = find_tool("grep.exe").is_some();
+    let on_path = find_tool(&grep).is_some();
     // From PATH, run it by name so it sees argv[0] = `grep` (as `exec grep` does), not a full path.
     let mut cmd = match (sibling, on_path) {
         (Some(p), _) => Command::new(p),

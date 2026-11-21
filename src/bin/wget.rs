@@ -1,6 +1,6 @@
 //! `wget` for Skua Bash: GNU Wget's common options on top of Windows' `curl.exe` (see
 //! `skua_tools::wget` for the subset and the exit statuses). curl is
-//! `%SystemRoot%\System32\curl.exe`, else `curl.exe` on `PATH`.
+//! `%SystemRoot%\System32\curl.exe`, else `curl.exe` on `PATH`; off Windows, `curl` on `PATH`.
 
 use skua_tools::wget::{self, Opts, Parsed};
 use std::fs::{File, OpenOptions};
@@ -8,14 +8,23 @@ use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 
+/// `curl.exe`, or `curl` where programs have no extension.
+const CURL: &str = if cfg!(windows) { "curl.exe" } else { "curl" };
+/// Where curl is looked for, for the messages.
+const CURL_PLACES: &str = if cfg!(windows) {
+    "%SystemRoot%\\System32\\curl.exe and curl.exe on PATH"
+} else {
+    "curl on PATH"
+};
+
 fn find_curl() -> Option<PathBuf> {
     let system = std::env::var_os("SystemRoot")
-        .filter(|v| !v.is_empty())
-        .map(|r| PathBuf::from(r).join("System32").join("curl.exe"));
+        .filter(|v| cfg!(windows) && !v.is_empty())
+        .map(|r| PathBuf::from(r).join("System32").join(CURL));
     let on_path = std::env::var_os("PATH")
         .map(|p| {
             std::env::split_paths(&p)
-                .map(|d| d.join("curl.exe"))
+                .map(|d| d.join(CURL))
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
@@ -248,9 +257,7 @@ fn main() -> ExitCode {
             );
             match find_curl() {
                 Some(c) => println!("It runs {} ({}).", c.display(), curl_version(&c)),
-                None => println!(
-                    "It needs curl.exe (%SystemRoot%\\System32\\curl.exe or PATH), which was not found."
-                ),
+                None => println!("It needs {CURL} ({CURL_PLACES}), which was not found."),
             }
             println!("Supported options: {}", wget::SUPPORTED);
             return ExitCode::SUCCESS;
@@ -261,9 +268,7 @@ fn main() -> ExitCode {
         }
     };
     let Some(curl) = find_curl() else {
-        eprintln!(
-            "wget: curl.exe not found (looked for %SystemRoot%\\System32\\curl.exe and curl.exe on PATH); this wget runs curl"
-        );
+        eprintln!("wget: {CURL} not found (looked for {CURL_PLACES}); this wget runs curl");
         return ExitCode::from(1);
     };
     let statuses: Vec<u8> = o

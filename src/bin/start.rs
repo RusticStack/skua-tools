@@ -5,8 +5,15 @@
 //! `SKUA_START_DRY_RUN=1` prints the command line instead of running it. No arguments: usage on
 //! stderr, exit 1 (Git Bash's would open an empty console window). A first argument `""` is
 //! taken as the window title (not doubled). cmd.exe's own status is passed through.
+//!
+//! Off Windows: the desktop's opener, `open` on macOS and `xdg-open` elsewhere, once per
+//! argument (`xdg-open` takes one), not waited for beyond the opener itself. A first argument
+//! `""` (the Windows title) is dropped. The dry run prints one `open ARG` line per argument.
+
+#![cfg_attr(not(windows), allow(dead_code))]
 
 use std::io::Write;
+#[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::process::{Command, ExitCode};
 
@@ -71,8 +78,46 @@ fn main() -> ExitCode {
         let _ = std::io::stderr().write_all(USAGE.as_bytes());
         return ExitCode::from(1);
     }
-    let line = command_line(&args);
-    if std::env::var_os("SKUA_START_DRY_RUN").is_some_and(|v| !v.is_empty() && v != "0") {
+    let dry_run = std::env::var_os("SKUA_START_DRY_RUN").is_some_and(|v| !v.is_empty() && v != "0");
+    open(&args, dry_run)
+}
+
+/// The desktop's opener.
+#[cfg(not(windows))]
+const OPENER: &str = if cfg!(target_os = "macos") {
+    "open"
+} else {
+    "xdg-open"
+};
+
+#[cfg(not(windows))]
+fn open(args: &[String], dry_run: bool) -> ExitCode {
+    let targets = match args.split_first() {
+        Some((title, rest)) if title.is_empty() => rest,
+        _ => args,
+    };
+    let mut code = 0u8;
+    for target in targets {
+        if dry_run {
+            let _ = writeln!(std::io::stdout(), "{OPENER} {target}");
+            continue;
+        }
+        match Command::new(OPENER).arg(target).status() {
+            Ok(s) if s.success() => {}
+            Ok(s) => code = (s.code().unwrap_or(1) & 0xFF) as u8,
+            Err(e) => {
+                eprintln!("start: cannot run {OPENER}: {e}");
+                return ExitCode::from(126);
+            }
+        }
+    }
+    ExitCode::from(code)
+}
+
+#[cfg(windows)]
+fn open(args: &[String], dry_run: bool) -> ExitCode {
+    let line = command_line(args);
+    if dry_run {
         let _ = writeln!(std::io::stdout(), "cmd.exe /c {line}");
         return ExitCode::SUCCESS;
     }

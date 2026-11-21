@@ -1,14 +1,22 @@
 //! `wget` end to end against a small HTTP server on 127.0.0.1 (an OS-assigned port), through
-//! Windows' own curl.exe. No external network. Skipped when there is no System32 curl.
+//! Windows' own curl.exe (off Windows, `curl` on PATH). No external network. Skipped when there
+//! is no curl.
 
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+#[cfg(windows)]
 fn have_curl() -> bool {
     std::env::var_os("SystemRoot")
         .is_some_and(|r| PathBuf::from(r).join(r"System32\curl.exe").is_file())
+}
+
+#[cfg(not(windows))]
+fn have_curl() -> bool {
+    std::env::var_os("PATH")
+        .is_some_and(|p| std::env::split_paths(&p).any(|d| d.join("curl").is_file()))
 }
 
 /// Serves until the test process ends.

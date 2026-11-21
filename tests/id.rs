@@ -2,6 +2,9 @@
 //! status for each form. The values are this machine's, so the reference is run here; the
 //! comparison is skipped when Git for Windows is not installed. Nothing depends on the user
 //! name or its length: the current user's name is taken from the reference `id -un`.
+//! Windows only: off Windows these commands run the system's own (see `tests/unix.rs`).
+
+#![cfg(windows)]
 
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};

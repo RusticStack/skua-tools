@@ -1,5 +1,8 @@
 //! End to end: `ps`, `pgrep` and `pkill` against a `ping` this test starts (and only that
 //! process: the pattern carries a payload size derived from the test's own PID).
+//! Windows only: off Windows these commands run the system's own (see `tests/unix.rs`).
+
+#![cfg(windows)]
 
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};

@@ -17,6 +17,10 @@
 //!    `%LOCALAPPDATA%\Programs\Python\Launcher\py.exe`), as `py -3` for `python3`.
 //!
 //! Nothing found: one line on stderr and status 127, without ever starting a stub.
+//!
+//! Off Windows there are no stubs and no `py`: the names are `python3` and `python`, a file must
+//! be executable, and only step 1 is left (so `python` runs `python3` on a system that has only
+//! that, and copies of this launcher are still skipped).
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -55,6 +59,9 @@ impl Search {
             .map(|p| std::env::split_paths(&p).collect())
             .unwrap_or_default();
         let mut py_launchers = Vec::new();
+        if cfg!(not(windows)) {
+            return Self { path, py_launchers };
+        }
         py_launchers.extend(var("SystemRoot").map(|r| r.join("py.exe")));
         py_launchers.extend(var("LOCALAPPDATA").map(|p| {
             p.join("Programs")
@@ -67,11 +74,17 @@ impl Search {
 }
 
 /// `python3.exe` for `python3`, `python.exe` for `python`, with the other name second.
+/// Off Windows the same without `.exe`.
 fn names(wanted: &str) -> [&'static str; 2] {
-    if wanted.eq_ignore_ascii_case("python3") {
-        ["python3.exe", "python.exe"]
+    let (python3, python) = if cfg!(windows) {
+        ("python3.exe", "python.exe")
     } else {
-        ["python.exe", "python3.exe"]
+        ("python3", "python")
+    };
+    if wanted.eq_ignore_ascii_case("python3") {
+        [python3, python]
+    } else {
+        [python, python3]
     }
 }
 
@@ -90,7 +103,7 @@ pub fn resolve(
         for name in names(wanted) {
             let c = dir.join(name);
             // `python3` never falls back to a Python 2 `python.exe`.
-            let right_version = !python3 || name == "python3.exe" || is_python3(&c);
+            let right_version = !python3 || name == names("python3")[0] || is_python3(&c);
             if right_version && runnable(&c) && !is_launcher(&c) {
                 return Some(Found {
                     program: c,
@@ -98,6 +111,9 @@ pub fn resolve(
                 });
             }
         }
+    }
+    if cfg!(not(windows)) {
+        return None;
     }
     let leading = if python3 { vec!["-3"] } else { vec![] };
     dirs()
@@ -135,6 +151,9 @@ pub fn is_python3(exe: &Path) -> bool {
 /// for.
 pub fn not_found_message(wanted: &str) -> String {
     let [a, b] = names(wanted);
+    if cfg!(not(windows)) {
+        return format!("bash: {wanted}: command not found (no {a} or {b} on PATH)");
+    }
     format!(
         "bash: {wanted}: command not found (no {a} or {b} on PATH, Microsoft Store aliases skipped, and no py launcher; install Python: python.org, or winget install Python.Python.3)"
     )
@@ -153,7 +172,20 @@ pub fn runnable(p: &Path) -> bool {
             None => std::fs::metadata(p).is_ok_and(|m| m.is_file() && m.len() > 0),
         };
     }
+    plain_runnable(p, &md)
+}
+
+#[cfg(windows)]
+fn plain_runnable(_p: &Path, md: &std::fs::Metadata) -> bool {
     md.is_file() && md.len() > 0
+}
+
+/// Off Windows: through symbolic links (`/usr/bin/python3` is one), and with an execute bit.
+#[cfg(not(windows))]
+fn plain_runnable(p: &Path, _md: &std::fs::Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt as _;
+    std::fs::metadata(p)
+        .is_ok_and(|m| m.is_file() && m.len() > 0 && m.permissions().mode() & 0o111 != 0)
 }
 
 /// Whether `p` is a copy of this launcher (it holds [`LAUNCHER_MARKER`]).
@@ -311,7 +343,7 @@ fn same_file(a: &Path, b: &Path) -> bool {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, windows))]
 mod tests {
     use super::*;
 

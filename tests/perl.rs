@@ -1,5 +1,8 @@
 //! `perl` launcher: arguments must reach Git for Windows' perl unchanged. Skipped when Git for
 //! Windows is not installed.
+//! Windows only: off Windows these commands run the system's own (see `tests/unix.rs`).
+
+#![cfg(windows)]
 
 use std::process::{Command, Output};
 

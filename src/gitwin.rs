@@ -237,7 +237,7 @@ fn registry_install_paths() -> Vec<PathBuf> {
     Vec::new()
 }
 
-#[cfg(test)]
+#[cfg(all(test, windows))]
 mod tests {
     use super::*;
 

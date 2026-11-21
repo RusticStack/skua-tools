@@ -1,6 +1,9 @@
 //! `python3` / `python` launchers end to end with fake directories: a stub-only WindowsApps
 //! (zero-length files, as the App Installer's look), a "Python" whose `python.exe` is a copy of
 //! `cmd.exe` (so running it shows the arguments arrived), and nothing at all.
+//! Windows only: off Windows these commands run the system's own (see `tests/unix.rs`).
+
+#![cfg(windows)]
 
 use std::path::PathBuf;
 use std::process::{Command, Stdio};

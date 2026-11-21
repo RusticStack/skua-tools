@@ -6,6 +6,15 @@
 //! the command line). Without a matching `-p` PID the table has its header only and the exit
 //! status is 1; other filters leave it 0.
 
+//!
+//! Off Windows none of that applies (there is no Cygwin layout to reproduce): the system's `ps`
+//! runs instead.
+
+#![cfg_attr(not(windows), allow(dead_code, unused_imports))]
+
+#[cfg(not(windows))]
+#[path = "../misc/launch.rs"]
+mod launch;
 #[path = "../procshare/procs.rs"]
 mod procs;
 #[path = "../procshare/stime.rs"]
@@ -203,6 +212,12 @@ fn row(p: &Proc, format: Format, own: u32, now: u64) -> String {
     }
 }
 
+#[cfg(not(windows))]
+fn main() -> ExitCode {
+    launch::system_tool("ps")
+}
+
+#[cfg(windows)]
 fn main() -> ExitCode {
     let o = match parse(std::env::args().skip(1)) {
         Parsed::Run(o) => o,

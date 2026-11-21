@@ -269,7 +269,11 @@ pub fn quiet_exit_on_stdout_failure(cleanup: impl Fn() + Send + Sync + 'static) 
         }
         cleanup();
         // ERROR_NO_DATA (232) and ERROR_BROKEN_PIPE (109): the pipe was closed by the reader.
-        if text.contains("os error 232") || text.contains("os error 109") {
+        // Off Windows it is EPIPE (32), on Linux and macOS alike.
+        if text.contains("os error 232")
+            || text.contains("os error 109")
+            || (cfg!(unix) && text.contains("os error 32"))
+        {
             std::process::exit(141);
         }
         eprintln!("write error");

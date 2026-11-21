@@ -8,13 +8,21 @@
 //! helpers resolve, which means a `system("ls")` inside a script runs Git's `ls`. Arguments are
 //! quoted for the Cygwin parser (`msys_args`).
 
+//!
+//! Off Windows there is no Git for Windows and every system has a perl: `SKUA_PERL`, else the
+//! first other `perl` on `PATH`, run in place of this process.
+
 #[path = "../misc/launch.rs"]
 mod launch;
+#[cfg(windows)]
 #[path = "../misc/msys_args.rs"]
 mod msys_args;
 
+#[cfg(windows)]
 use skua_tools::gitwin;
+#[cfg(windows)]
 use std::os::windows::process::CommandExt;
+#[cfg(windows)]
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
@@ -22,6 +30,7 @@ const OVERRIDE: &str = "SKUA_PERL";
 
 /// `SKUA_PERL` when it names a usable perl, else Git for Windows' perl
 /// ([`skua_tools::gitwin`]); `Err` is the message for a perl that is not there.
+#[cfg(windows)]
 fn find_perl() -> Result<PathBuf, String> {
     let me = std::env::current_exe()
         .ok()
@@ -46,6 +55,19 @@ fn find_perl() -> Result<PathBuf, String> {
         .ok_or_else(|| gitwin::not_found_message("perl", "perl.exe", OVERRIDE, &all))
 }
 
+#[cfg(not(windows))]
+fn main() -> ExitCode {
+    match std::env::var_os(OVERRIDE).filter(|p| !p.is_empty()) {
+        Some(perl) => {
+            let mut cmd = Command::new(perl);
+            cmd.args(std::env::args_os().skip(1));
+            launch::run("perl", cmd)
+        }
+        None => launch::system_tool("perl"),
+    }
+}
+
+#[cfg(windows)]
 fn main() -> ExitCode {
     let perl = match find_perl() {
         Ok(perl) => perl,
