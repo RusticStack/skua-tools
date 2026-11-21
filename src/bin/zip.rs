@@ -3,7 +3,7 @@
 //! `zip [-r -q -j -D -X -m -u -f -9..-0 -T -x LIST -i LIST -@] out.zip files...`, `zip -d out.zip
 //! patterns`, update of an existing archive, `  adding: x (deflated 63%)` lines, names of
 //! directories with a trailing `/`, `-` for stdin and for stdout. Deflate and store only,
-//! no Zip64, no encryption, no comments.
+//! Zip64 where the classic fields overflow, no encryption, no comments.
 
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -206,7 +206,7 @@ fn main() -> ExitCode {
         match files::write(out, c, o.level) {
             Ok(Some(n)) => {
                 let how = if n.deflated { "deflated" } else { "stored" };
-                let pct = percent(u64::from(n.usize), u64::from(n.csize));
+                let pct = percent(n.usize, n.csize);
                 say(format!("{label:>8}: {} ({how} {pct}%)", c.name));
                 Ok(())
             }

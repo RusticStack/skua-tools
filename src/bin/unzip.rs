@@ -1,8 +1,8 @@
 //! `unzip` for Skua Bash: Info-ZIP UnZip 6.00 as Git Bash ships it, for what agents use:
 //! `unzip a.zip`, `-d DIR`, `-o -n -q -qq -j -p -l -v -t -z -f -u -x -C -L -s`, member
 //! patterns (Info-ZIP wildcards: `*` stops at `/`, `**` does not), `-Z` / `-Z1`. Never waits on
-//! a prompt unless stdin is a terminal or a pipe that has data. Stored and deflated entries
-//! only; encrypted and exotic-method entries are reported and skipped (exit 81).
+//! a prompt unless stdin is a terminal or a pipe that has data. Stored, deflated and bzip2
+//! entries; encrypted and other-method entries are reported and skipped (exit 81).
 
 use std::fs::File;
 use std::io::{self, Write};

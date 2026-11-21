@@ -88,6 +88,7 @@ name = "wget"
 path = "src/bin/wget.rs"
 
 [dependencies]
+bzip2 = "0.6.1"
 encoding_rs = "0.8.35"
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 regex-lite = "0.1.9"

@@ -1,6 +1,6 @@
 //! The ZIP container for `unzip` and `zip` (included with `#[path]`): reading the central
 //! directory, streaming one entry's data out with a CRC check, and Info-ZIP's wildcard rules.
-//! Only stored and deflated entries are handled (what Info-ZIP's `zip` writes); no encryption.
+//! Stored, deflated and bzip2 entries are handled; no encryption.
 #![allow(dead_code)]
 
 use std::fs::File;
@@ -11,8 +11,8 @@ use flate2::Crc;
 pub const SIG_LOCAL: u32 = 0x0403_4b50;
 pub const SIG_CENTRAL: u32 = 0x0201_4b50;
 pub const SIG_EOCD: u32 = 0x0605_4b50;
-const SIG_EOCD64: u32 = 0x0606_4b50;
-const SIG_LOC64: u32 = 0x0706_4b50;
+pub const SIG_EOCD64: u32 = 0x0606_4b50;
+pub const SIG_LOC64: u32 = 0x0706_4b50;
 
 /// One central-directory record.
 #[derive(Clone, Debug)]
@@ -228,15 +228,25 @@ pub enum DataError {
 pub fn has_overlap(entries: &[Entry]) -> bool {
     let mut spans: Vec<(u64, u64)> = entries
         .iter()
-        .map(|e| (e.offset, e.offset.saturating_add(30).saturating_add(e.csize)))
+        .map(|e| {
+            (
+                e.offset,
+                e.offset.saturating_add(30).saturating_add(e.csize),
+            )
+        })
         .collect();
     spans.sort_unstable();
     spans.windows(2).any(|w| w[1].0 < w[0].1)
 }
 
+/// Compression methods `read_entry` handles: stored, deflated, bzip2.
+pub fn supported_method(method: u16) -> bool {
+    matches!(method, 0 | 8 | 12)
+}
+
 /// Streams the uncompressed data of `e` into `out`, checking size and CRC.
 pub fn read_entry<W: Write>(f: &mut File, e: &Entry, out: &mut W) -> Result<(), DataError> {
-    if e.method != 0 && e.method != 8 {
+    if !supported_method(e.method) {
         return Err(DataError::Method(e.method));
     }
     f.seek(SeekFrom::Start(e.offset)).map_err(DataError::Io)?;
@@ -252,10 +262,10 @@ pub fn read_entry<W: Write>(f: &mut File, e: &Entry, out: &mut W) -> Result<(), 
     let mut crc = Crc::new();
     let mut total = 0u64;
     let mut buf = vec![0u8; 64 * 1024];
-    let mut src: Box<dyn Read> = if e.method == 8 {
-        Box::new(flate2::bufread::DeflateDecoder::new(raw))
-    } else {
-        Box::new(raw)
+    let mut src: Box<dyn Read> = match e.method {
+        8 => Box::new(flate2::bufread::DeflateDecoder::new(raw)),
+        12 => Box::new(bzip2::bufread::BzDecoder::new(raw)),
+        _ => Box::new(raw),
     };
     loop {
         let n = match src.read(&mut buf) {

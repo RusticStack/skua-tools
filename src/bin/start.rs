@@ -84,7 +84,12 @@ fn main() -> ExitCode {
                 .filter(|v| !v.is_empty())
                 .map_or_else(
                     || "cmd.exe".into(),
-                    |r| std::path::Path::new(&r).join("System32").join("cmd.exe").into(),
+                    |r| {
+                        std::path::Path::new(&r)
+                            .join("System32")
+                            .join("cmd.exe")
+                            .into()
+                    },
                 )
         });
     let mut cmd = Command::new(comspec);

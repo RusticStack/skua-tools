@@ -318,14 +318,32 @@ mod safe_component_tests {
 
     #[test]
     fn device_names_are_prefixed() {
-        for n in ["nul", "NUL", "con.txt", "Aux.tar.gz", "COM1", "lpt9", "nul ", "prn.x"] {
+        for n in [
+            "nul",
+            "NUL",
+            "con.txt",
+            "Aux.tar.gz",
+            "COM1",
+            "lpt9",
+            "nul ",
+            "prn.x",
+        ] {
             assert_eq!(s(n), format!("_{n}"), "{n}");
         }
     }
 
     #[test]
     fn ordinary_names_are_unchanged() {
-        for n in ["null", "console", "com0", "com10", "lpt", "a.nul", "index.html", "..x"] {
+        for n in [
+            "null",
+            "console",
+            "com0",
+            "com10",
+            "lpt",
+            "a.nul",
+            "index.html",
+            "..x",
+        ] {
             assert_eq!(s(n), n, "{n}");
         }
     }

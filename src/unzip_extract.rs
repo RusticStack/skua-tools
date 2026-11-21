@@ -212,7 +212,7 @@ pub fn run(o: &Opts, name: &str, arch: &Archive, f: &mut File) -> u8 {
         if e.flags & 1 != 0 {
             eprintln!("   skipping: {:<22}  unable to get password", e.name);
             c.bump(82);
-        } else if e.method != 0 && e.method != 8 {
+        } else if !zipfmt::supported_method(e.method) {
             eprintln!(
                 "   skipping: {:<22}  unsupported compression method {}",
                 e.name, e.method
@@ -331,10 +331,10 @@ fn extract_entry(c: &mut Ctx, f: &mut File, e: &Entry) {
     } else if c.o.freshen {
         return;
     }
-    let label = if e.method == 8 {
-        "  inflating:"
-    } else {
-        " extracting:"
+    let label = match e.method {
+        8 => "  inflating:",
+        12 => " bunzipping:",
+        _ => " extracting:",
     };
     if !quiet {
         print!("{label} {display:<22}  ");

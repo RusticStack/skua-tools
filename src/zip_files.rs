@@ -247,6 +247,7 @@ pub fn write(out: &mut Out, c: &Cand, level: u32) -> io::Result<Option<New>> {
         csize: 0,
         usize: 0,
         offset: 0,
+        zip64: false,
         text: false,
         ext_attr,
     };

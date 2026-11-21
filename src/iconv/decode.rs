@@ -1,6 +1,6 @@
 //! Decoding: bytes to Unicode scalar values with the position of each, as libiconv reports.
 
-use super::charset::{ISO9, Kind, rs_encoding, undefined_c1};
+use super::charset::{ISO9, Kind, dos_page, rs_encoding, undefined_c1};
 
 /// What the decoder found at one place in the input.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -64,6 +64,15 @@ pub fn decode(kind: Kind, data: &[u8], f: &mut dyn FnMut(Item) -> bool) {
                     u32::from(b)
                 };
                 v.push(item(Dec::Ch(cp), i, 1));
+                if v.stop {
+                    break;
+                }
+            }
+        }
+        Kind::Dos(key) => {
+            let Some(page) = dos_page(key) else { return };
+            for (i, &b) in data.iter().enumerate() {
+                v.push(item(page[usize::from(b)].map_or(Dec::Bad, Dec::Ch), i, 1));
                 if v.stop {
                     break;
                 }
