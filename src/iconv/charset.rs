@@ -1,9 +1,34 @@
 //! Character sets: names (the aliases GNU libiconv 1.19 accepts), decoding to Unicode
 //! scalar values and encoding back.
 
+use std::sync::OnceLock;
+
 use encoding_rs::Encoding;
 
 const TABLE: &str = include_str!("../data/iconv_charsets.dat");
+/// DOS (OEM) code pages as GNU libiconv maps them: a key, then the code point of each of the
+/// 256 bytes in hexadecimal, `-` for a byte the page leaves undefined.
+const DOS_TABLE: &str = include_str!("../data/iconv_dos.dat");
+
+/// The code point of each byte of the DOS code page `key` (`None`: undefined).
+pub fn dos_page(key: &str) -> Option<&'static [Option<u32>; 256]> {
+    type Page = (&'static str, [Option<u32>; 256]);
+    static PAGES: OnceLock<Vec<Page>> = OnceLock::new();
+    let pages = PAGES.get_or_init(|| {
+        DOS_TABLE
+            .lines()
+            .filter_map(|l| {
+                let (key, cells) = l.split_once('\t')?;
+                let mut page = [None; 256];
+                for (slot, cell) in page.iter_mut().zip(cells.split(' ')) {
+                    *slot = u32::from_str_radix(cell, 16).ok();
+                }
+                Some((key, page))
+            })
+            .collect()
+    });
+    pages.iter().find(|p| p.0 == key).map(|p| &p.1)
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind {
@@ -23,6 +48,8 @@ pub enum Kind {
         bom_in: bool,
         bom_out: bool,
     },
+    /// A DOS code page: its key in [`dos_page`].
+    Dos(&'static str),
     /// Everything `encoding_rs` knows: the index of its encoding in [`rs_encoding`].
     Rs(&'static str),
 }
@@ -97,6 +124,7 @@ fn kind_of(key: &'static str) -> Option<Kind> {
             bom_in: true,
             bom_out: true,
         },
+        other if dos_page(other).is_some() => Kind::Dos(other),
         other => Kind::Rs(other),
     })
 }
@@ -199,6 +227,10 @@ impl Encoder {
                 } else {
                     return None;
                 }
+            }
+            Kind::Dos(key) => {
+                let b = dos_page(key)?.iter().position(|&x| x == Some(cp))?;
+                vec![b as u8]
             }
             Kind::Utf8 => c.to_string().into_bytes(),
             Kind::Utf16 {

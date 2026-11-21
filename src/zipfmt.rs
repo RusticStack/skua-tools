@@ -1,6 +1,6 @@
 //! The ZIP container for `unzip` and `zip` (included with `#[path]`): reading the central
 //! directory, streaming one entry's data out with a CRC check, and Info-ZIP's wildcard rules.
-//! Only stored and deflated entries are handled (what Info-ZIP's `zip` writes); no encryption.
+//! Stored, deflated and bzip2 entries are handled; no encryption.
 #![allow(dead_code)]
 
 use std::fs::File;
@@ -11,8 +11,8 @@ use flate2::Crc;
 pub const SIG_LOCAL: u32 = 0x0403_4b50;
 pub const SIG_CENTRAL: u32 = 0x0201_4b50;
 pub const SIG_EOCD: u32 = 0x0605_4b50;
-const SIG_EOCD64: u32 = 0x0606_4b50;
-const SIG_LOC64: u32 = 0x0706_4b50;
+pub const SIG_EOCD64: u32 = 0x0606_4b50;
+pub const SIG_LOC64: u32 = 0x0706_4b50;
 
 /// One central-directory record.
 #[derive(Clone, Debug)]
@@ -222,9 +222,31 @@ pub enum DataError {
     Io(io::Error),
 }
 
+/// Whether two entries share bytes of the file: the "overlapped components" zip bomb, where
+/// many entries inflate the same compressed block. Each entry covers at least its 30-byte local
+/// header and `csize` bytes of data from its offset.
+pub fn has_overlap(entries: &[Entry]) -> bool {
+    let mut spans: Vec<(u64, u64)> = entries
+        .iter()
+        .map(|e| {
+            (
+                e.offset,
+                e.offset.saturating_add(30).saturating_add(e.csize),
+            )
+        })
+        .collect();
+    spans.sort_unstable();
+    spans.windows(2).any(|w| w[1].0 < w[0].1)
+}
+
+/// Compression methods `read_entry` handles: stored, deflated, bzip2.
+pub fn supported_method(method: u16) -> bool {
+    matches!(method, 0 | 8 | 12)
+}
+
 /// Streams the uncompressed data of `e` into `out`, checking size and CRC.
 pub fn read_entry<W: Write>(f: &mut File, e: &Entry, out: &mut W) -> Result<(), DataError> {
-    if e.method != 0 && e.method != 8 {
+    if !supported_method(e.method) {
         return Err(DataError::Method(e.method));
     }
     f.seek(SeekFrom::Start(e.offset)).map_err(DataError::Io)?;
@@ -240,10 +262,10 @@ pub fn read_entry<W: Write>(f: &mut File, e: &Entry, out: &mut W) -> Result<(), 
     let mut crc = Crc::new();
     let mut total = 0u64;
     let mut buf = vec![0u8; 64 * 1024];
-    let mut src: Box<dyn Read> = if e.method == 8 {
-        Box::new(flate2::bufread::DeflateDecoder::new(raw))
-    } else {
-        Box::new(raw)
+    let mut src: Box<dyn Read> = match e.method {
+        8 => Box::new(flate2::bufread::DeflateDecoder::new(raw)),
+        12 => Box::new(bzip2::bufread::BzDecoder::new(raw)),
+        _ => Box::new(raw),
     };
     loop {
         let n = match src.read(&mut buf) {
@@ -254,8 +276,12 @@ pub fn read_entry<W: Write>(f: &mut File, e: &Entry, out: &mut W) -> Result<(), 
             }
             Err(_) => return Err(DataError::Inflate),
         };
-        crc.update(&buf[..n]);
         total += n as u64;
+        // A header that lies about the size must not make us write a bomb: stop at the declared size.
+        if total > e.usize {
+            return Err(DataError::Inflate);
+        }
+        crc.update(&buf[..n]);
         out.write_all(&buf[..n]).map_err(DataError::Io)?;
     }
     if total != e.usize {
@@ -361,5 +387,70 @@ mod tests {
     fn zip_wildcards_cross_slash() {
         assert!(glob_match("*.o", "a/b/c.o", false, false));
         assert!(glob_match("a/*", "a/b/c", false, false));
+    }
+
+    fn dummy_entry(offset: u64, csize: u64) -> Entry {
+        Entry {
+            name: "a".to_owned(),
+            version_made: 0,
+            version_needed: 20,
+            flags: 0,
+            method: 8,
+            dos_time: 0,
+            dos_date: 0,
+            crc: 0,
+            csize,
+            usize: csize,
+            offset,
+            int_attr: 0,
+            ext_attr: 0,
+            mtime_utc: None,
+            central: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn overlap_detection() {
+        assert!(!has_overlap(&[dummy_entry(0, 10), dummy_entry(40, 10)]));
+        assert!(!has_overlap(&[dummy_entry(0, 0), dummy_entry(30, 0)]));
+        assert!(has_overlap(&[dummy_entry(0, 20), dummy_entry(40, 10)]));
+        assert!(has_overlap(&[dummy_entry(10, 5), dummy_entry(10, 5)]));
+    }
+
+    #[test]
+    fn read_entry_rejects_oversized_inflate() {
+        use flate2::Compression;
+        use flate2::write::DeflateEncoder;
+        use std::io::Write;
+        let dir = std::env::temp_dir();
+        let path = dir.join(format!("skua_zip_bomb_test_{}.zip", std::process::id()));
+        let payload = vec![b'A'; 1024];
+        let mut enc = DeflateEncoder::new(Vec::new(), Compression::default());
+        enc.write_all(&payload).unwrap();
+        let comp = enc.finish().unwrap();
+        let mut raw = Vec::new();
+        raw.extend_from_slice(&SIG_LOCAL.to_le_bytes());
+        raw.extend_from_slice(&20u16.to_le_bytes()); // version needed
+        raw.extend_from_slice(&0u16.to_le_bytes()); // flags
+        raw.extend_from_slice(&8u16.to_le_bytes()); // method deflate
+        raw.extend_from_slice(&0u16.to_le_bytes()); // time
+        raw.extend_from_slice(&0u16.to_le_bytes()); // date
+        raw.extend_from_slice(&0u32.to_le_bytes()); // crc
+        raw.extend_from_slice(&(comp.len() as u32).to_le_bytes()); // csize
+        raw.extend_from_slice(&10u32.to_le_bytes()); // lying usize (10 < 1024)
+        raw.extend_from_slice(&1u16.to_le_bytes()); // name len
+        raw.extend_from_slice(&0u16.to_le_bytes()); // extra len
+        raw.push(b'a');
+        raw.extend_from_slice(&comp);
+        std::fs::write(&path, &raw).unwrap();
+        let mut f = File::open(&path).unwrap();
+        let mut e = dummy_entry(0, comp.len() as u64);
+        e.usize = 10;
+        let mut out = Vec::new();
+        let res = read_entry(&mut f, &e, &mut out);
+        drop(f);
+        let _ = std::fs::remove_file(&path);
+        assert!(matches!(res, Err(DataError::Inflate)), "got {res:?}");
+        assert!(out.is_empty());
     }
 }

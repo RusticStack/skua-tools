@@ -295,3 +295,134 @@ fn gzip_version_and_verbose_stdout_wording_as_gnu() {
         err(&o)
     );
 }
+
+/// A one-member archive whose data is bzip2 (method 12), as `zip -Z bzip2` writes it.
+fn bzip2_archive(name: &str, data: &[u8]) -> Vec<u8> {
+    use std::io::Write;
+    let mut enc = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::best());
+    enc.write_all(data).expect("compress");
+    let comp = enc.finish().expect("compress");
+    let mut crc = flate2::Crc::new();
+    crc.update(data);
+    let mut common = Vec::new();
+    for v in [46u16, 0, 12, 0, 0x21] {
+        common.extend_from_slice(&v.to_le_bytes());
+    }
+    for v in [crc.sum(), comp.len() as u32, data.len() as u32] {
+        common.extend_from_slice(&v.to_le_bytes());
+    }
+    common.extend_from_slice(&(name.len() as u16).to_le_bytes());
+    common.extend_from_slice(&[0, 0]);
+    let mut z = b"PK\x03\x04".to_vec();
+    z.extend_from_slice(&common);
+    z.extend_from_slice(name.as_bytes());
+    z.extend_from_slice(&comp);
+    let cd_start = z.len() as u32;
+    z.extend_from_slice(b"PK\x01\x02\x2e\x03");
+    z.extend_from_slice(&common);
+    z.extend_from_slice(&[0; 10]);
+    z.extend_from_slice(&0u32.to_le_bytes());
+    z.extend_from_slice(name.as_bytes());
+    let cd_size = z.len() as u32 - cd_start;
+    z.extend_from_slice(b"PK\x05\x06\0\0\0\0\x01\0\x01\0");
+    z.extend_from_slice(&cd_size.to_le_bytes());
+    z.extend_from_slice(&cd_start.to_le_bytes());
+    z.extend_from_slice(&[0, 0]);
+    z
+}
+
+#[test]
+fn unzip_extracts_bzip2_entries() {
+    let d = sandbox("bz");
+    let data = "bzip2 inside a zip\n".repeat(500);
+    let mut z = bzip2_archive("b.txt", data.as_bytes());
+    fs::write(d.join("b.zip"), &z).expect("write");
+    let o = unzip(&d, &["b.zip"]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert_eq!(
+        out(&o),
+        "Archive:  b.zip\n bunzipping: b.txt                   \n"
+    );
+    assert_eq!(fs::read_to_string(d.join("b.txt")).expect("read"), data);
+    assert_eq!(out(&unzip(&d, &["-p", "b.zip"])), data);
+    let t = out(&unzip(&d, &["-t", "b.zip"]));
+    assert!(
+        t.contains("    testing: b.txt                    OK\n"),
+        "{t}"
+    );
+    // Damaged data is reported, not written out as if it were good.
+    let at = z.len() / 2;
+    z[at] ^= 0x55;
+    fs::write(d.join("bad.zip"), &z).expect("write");
+    let o = unzip(&d, &["-t", "bad.zip"]);
+    assert_eq!(o.status.code(), Some(2), "{}{}", out(&o), err(&o));
+}
+
+#[test]
+fn zip_writes_zip64_past_65534_entries() {
+    let d = sandbox("z64n");
+    fs::create_dir_all(d.join("many")).expect("mkdir");
+    for i in 0..65_536 {
+        fs::write(d.join(format!("many/{i}")), "").expect("write");
+    }
+    let o = zip(&d, &["-r", "-q", "many.zip", "many"]);
+    assert!(o.status.success(), "{}", err(&o));
+    let raw = fs::read(d.join("many.zip")).expect("read");
+    // Zip64 end record and locator sit before a classic end record with a saturated count.
+    let end = &raw[raw.len() - 22 - 20 - 56..];
+    assert_eq!(&end[..4], b"PK\x06\x06");
+    assert_eq!(end[32..40], 65_537u64.to_le_bytes());
+    assert_eq!(&end[56..60], b"PK\x06\x07");
+    assert_eq!(&end[76..80], b"PK\x05\x06");
+    assert_eq!(end[84..88], [0xff; 4]);
+    let l = out(&unzip(&d, &["-l", "many.zip"]));
+    assert!(
+        l.ends_with("                65537 files\n"),
+        "{}",
+        &l[l.len() - 80..]
+    );
+    // Updating keeps every entry and stays Zip64.
+    fs::write(d.join("extra.txt"), "one more\n").expect("write");
+    let o = zip(&d, &["-q", "many.zip", "extra.txt"]);
+    assert!(o.status.success(), "{}", err(&o));
+    let o = unzip(&d, &["-tq", "many.zip"]);
+    assert!(o.status.success(), "{}", err(&o));
+    assert!(out(&o).contains("No errors detected"), "{}", out(&o));
+    assert_eq!(
+        out(&unzip(&d, &["-p", "many.zip", "extra.txt"])),
+        "one more\n"
+    );
+    let _ = fs::remove_dir_all(&d);
+}
+
+/// Needs about 13 GB of disk and a few minutes: `cargo test --release -- --ignored zip64`.
+#[test]
+#[ignore = "writes more than 8 GiB"]
+fn zip_writes_zip64_members_and_offsets_past_4gib() {
+    let d = sandbox("z64big");
+    let big = 0x1_0000_1000u64;
+    fs::File::create(d.join("big.bin"))
+        .and_then(|f| f.set_len(big))
+        .expect("create");
+    fs::write(d.join("small.txt"), "after four gigabytes\n").expect("write");
+    let o = zip(&d, &["-0", "-q", "big.zip", "big.bin"]);
+    assert!(o.status.success(), "{}", err(&o));
+    // The update copies the Zip64 member and puts the new one at an offset past 4 GiB.
+    let o = zip(&d, &["-q", "big.zip", "small.txt"]);
+    assert!(o.status.success(), "{}", err(&o));
+    let l = out(&unzip(&d, &["-l", "big.zip"]));
+    assert!(l.contains("4294971392"), "{l}");
+    assert!(l.ends_with("2 files\n"), "{l}");
+    let o = unzip(&d, &["-tq", "big.zip"]);
+    assert!(o.status.success(), "{}{}", out(&o), err(&o));
+    assert_eq!(
+        out(&unzip(&d, &["-p", "big.zip", "small.txt"])),
+        "after four gigabytes\n"
+    );
+    // A deflated member of 4 GiB or more has its sizes in the local header's Zip64 field.
+    let o = zip(&d, &["-1", "-q", "deflated.zip", "big.bin"]);
+    assert!(o.status.success(), "{}", err(&o));
+    let o = unzip(&d, &["-tq", "deflated.zip"]);
+    assert!(o.status.success(), "{}{}", out(&o), err(&o));
+    let _ = fs::remove_dir_all(&d);
+}

@@ -290,3 +290,61 @@ mod tests {
         assert!(!is_json(b"\"s\""));
     }
 }
+
+/// A file-name component made safe to create on Windows: a reserved device name (`CON`, `PRN`,
+/// `AUX`, `NUL`, `COM1`..`COM9`, `LPT1`..`LPT9`, also with an extension, as `NUL.txt`) would open
+/// the device, not a file, so it gets a `_` in front. Anything else is returned unchanged.
+pub fn windows_safe_component(name: &str) -> std::borrow::Cow<'_, str> {
+    let stem = name.split('.').next().unwrap_or("").trim_end_matches(' ');
+    let b = stem.as_bytes();
+    let reserved = matches!(b.len(), 3 | 4)
+        && (stem.eq_ignore_ascii_case("con")
+            || stem.eq_ignore_ascii_case("prn")
+            || stem.eq_ignore_ascii_case("aux")
+            || stem.eq_ignore_ascii_case("nul")
+            || (b.len() == 4
+                && (b[..3].eq_ignore_ascii_case(b"com") || b[..3].eq_ignore_ascii_case(b"lpt"))
+                && (b'1'..=b'9').contains(&b[3])));
+    if reserved {
+        std::borrow::Cow::Owned(format!("_{name}"))
+    } else {
+        std::borrow::Cow::Borrowed(name)
+    }
+}
+
+#[cfg(test)]
+mod safe_component_tests {
+    use super::windows_safe_component as s;
+
+    #[test]
+    fn device_names_are_prefixed() {
+        for n in [
+            "nul",
+            "NUL",
+            "con.txt",
+            "Aux.tar.gz",
+            "COM1",
+            "lpt9",
+            "nul ",
+            "prn.x",
+        ] {
+            assert_eq!(s(n), format!("_{n}"), "{n}");
+        }
+    }
+
+    #[test]
+    fn ordinary_names_are_unchanged() {
+        for n in [
+            "null",
+            "console",
+            "com0",
+            "com10",
+            "lpt",
+            "a.nul",
+            "index.html",
+            "..x",
+        ] {
+            assert_eq!(s(n), n, "{n}");
+        }
+    }
+}

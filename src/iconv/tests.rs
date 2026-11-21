@@ -52,6 +52,41 @@ fn translit_and_subst() {
 }
 
 #[test]
+fn dos_code_pages() {
+    let (rc, out, _) = iconv(
+        &["-f", "CP437", "-t", "UTF-8"],
+        &[0x80, 0x9b, 0xc9, 0xcd, 0xbb],
+    );
+    assert_eq!(rc, 0);
+    assert_eq!(out, "\u{c7}\u{a2}\u{2554}\u{2550}\u{2557}".as_bytes());
+    let (_, out, _) = iconv(&["-f", "850", "-t", "UTF-8"], &[0x9b, 0xd5]);
+    assert_eq!(out, "\u{f8}\u{131}".as_bytes());
+    let (_, out, _) = iconv(&["-f", "CP858", "-t", "UTF-8"], &[0xd5]);
+    assert_eq!(out, "\u{20ac}".as_bytes());
+    let (_, out, _) = iconv(
+        &["-f", "UTF-8", "-t", "IBM866"],
+        "\u{416}\u{2591}z".as_bytes(),
+    );
+    assert_eq!(out, [0x86, 0xb0, b'z']);
+    // Every page maps back to the bytes it came from, apart from bytes it leaves undefined.
+    let all: Vec<u8> = (0..=255).collect();
+    for e in super::charset::entries().filter(|e| super::charset::dos_page(e.key).is_some()) {
+        let name = e.names.split(' ').next_back().expect("a name");
+        let (_, text, _) = iconv(&["-c", "-f", name, "-t", "UTF-8"], &all);
+        let (rc, back, _) = iconv(&["-f", "UTF-8", "-t", name], &text);
+        assert_eq!(rc, 0, "{name}");
+        let (_, again, _) = iconv(&["-c", "-f", name, "-t", "UTF-8"], &back);
+        assert_eq!(again, text, "{name}");
+    }
+    // A character the page lacks is an error, as for any other set.
+    let (rc, _, err) = iconv(&["-f", "UTF-8", "-t", "CP437"], "\u{20ac}".as_bytes());
+    assert_eq!(
+        (rc, err.as_str()),
+        (1, "iconv: (stdin):1:0: cannot convert\n")
+    );
+}
+
+#[test]
 fn code_pages_and_errors() {
     let (_, out, _) = iconv(&["-f", "CP1252", "-t", "UTF-8"], &[0x80, 0xe9]);
     assert_eq!(out, "\u{20ac}\u{e9}".as_bytes());
